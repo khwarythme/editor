@@ -85,6 +85,9 @@ fn main() {
                             if buf.get_row_length() <= point.row + point_in_file.row + 1 {
                             } else if window_size().unwrap().rows >= point.row {
                                 point.row = point.row + 1;
+                                if point.col > buf.get_col_length(point.row) {
+                                    point.col = buf.get_col_length(point.row)
+                                }
                             } else {
                                 {
                                     point_in_file.row += 1;
@@ -98,6 +101,9 @@ fn main() {
                         'k' => {
                             if point.row > 0 {
                                 point.row = point.row - 1;
+                                if point.col > buf.get_col_length(point.row) {
+                                    point.col = buf.get_col_length(point.row)
+                                }
                             } else {
                                 if point_in_file.row > 0 {
                                     point_in_file.row -= 1;
