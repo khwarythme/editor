@@ -1,0 +1,10 @@
+[package]
+name = "editor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossterm = "0.28.1"
+loe = "0.3.0"
+lua = "0.0.10"
+serde = "1.0.217"
