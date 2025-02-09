@@ -5,21 +5,21 @@ use modules::mode::{State, MODE};
 use modules::show::Display;
 
 use crossterm::cursor;
-use crossterm::cursor::MoveTo;
+use crossterm::cursor::{MoveTo, SetCursorStyle};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
+use crossterm::terminal::window_size;
 use crossterm::terminal::EnterAlternateScreen;
 use crossterm::terminal::LeaveAlternateScreen;
-use crossterm::terminal::{size, window_size};
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::terminal::{ScrollDown, ScrollUp};
 
 use std::env;
 use std::path::Path;
 
-use std::io::*;
+use std::io::{stdout, Stdout};
 #[derive(Clone, Copy)]
 struct Point {
     col: u16,
@@ -27,18 +27,33 @@ struct Point {
 }
 fn main() {
     let mut out = stdout();
-    let mut point: Point = Point { col: 0, row: 0 };
-    let mut state = State::new();
-    let mut args = env::args();
-    let mut pathstr = String::new();
+    let args = env::args();
     let arg: Vec<String> = args.collect();
     let path = Path::new(&arg[1]);
-
     let mut buf = FileBuffer::new(path).expect("cannot open file");
-    enable_raw_mode().unwrap();
-    let mut visual = Display::new();
-    let mut point_in_file = Point { col: 0, row: 0 };
+    let mut display = init_window().unwrap();
+    execute!(out, SetCursorStyle::SteadyBlock);
+    handle(&mut display, &mut buf, &mut out);
 
+    close_terminal("".to_string(), &mut out);
+}
+fn init_window() -> Result<Display, String> {
+    match enable_raw_mode() {
+        Ok(_) => Ok(Display::new()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+fn close_terminal(err: String, out: &mut Stdout) {
+    print!("{}", err);
+    execute!(out, cursor::Show, LeaveAlternateScreen,).expect("failed to close alternate screen");
+    disable_raw_mode().expect("");
+}
+fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
+    let mut point: Point = Point { col: 0, row: 0 };
+    let mut point_in_file = Point { col: 0, row: 0 };
+    let mut state = State::new();
+    let mut pos_tmp: u16 = 0;
     loop {
         execute!(
             out,
@@ -48,17 +63,14 @@ fn main() {
             MoveTo(point.col, point.row)
         )
         .expect("Failed to open alternate screen");
-        execute!(out, Clear(ClearType::All))
-            .unwrap_or_else(|e| close_terminal(e.to_string(), &mut out));
-        execute!(out, MoveTo(0, 0)).unwrap_or_else(|_| {
-            close_terminal("[E101] failed to move cursor".to_string(), &mut out)
-        });
-        visual
+        execute!(out, Clear(ClearType::All)).unwrap_or_else(|e| close_terminal(e.to_string(), out));
+        execute!(out, MoveTo(0, 0))
+            .unwrap_or_else(|_| close_terminal("[E101] failed to move cursor".to_string(), out));
+        display
             .update([point_in_file.col, point_in_file.row], buf.get_contents())
-            .unwrap_or_else(|x| close_terminal(x, &mut out));
-        execute!(out, MoveTo(point.col, point.row)).unwrap_or_else(|_| {
-            close_terminal("[E101] failed to move cursor".to_string(), &mut out)
-        });
+            .unwrap_or_else(|x| close_terminal(x, out));
+        execute!(out, MoveTo(point.col, point.row))
+            .unwrap_or_else(|_| close_terminal("[E101] failed to move cursor".to_string(), out));
 
         let input = match event::read().unwrap() {
             Event::Key(event) => event,
@@ -76,6 +88,8 @@ fn main() {
                             let ret = if state.get_read_only() {
                                 mode
                             } else {
+                                execute!(out, SetCursorStyle::BlinkingBar)
+                                    .unwrap_or_else(|x| close_terminal(x.to_string(), out));
                                 MODE::INSERT
                             };
                             ret
@@ -83,17 +97,27 @@ fn main() {
                         'v' => MODE::VISUAL,
                         'j' => {
                             if buf.get_row_length() <= point.row + point_in_file.row + 1 {
-                            } else if window_size().unwrap().rows >= point.row {
+                            } else if window_size().unwrap().rows > point.row {
                                 point.row = point.row + 1;
-                                if point.col > buf.get_col_length(point.row) {
-                                    point.col = buf.get_col_length(point.row)
+                                if point.col > buf.get_col_length(point.row + point_in_file.row) {
+                                    point.col = buf.get_col_length(point.row + point_in_file.row)
+                                } else if pos_tmp
+                                    < buf.get_col_length(point.row + point_in_file.row)
+                                {
+                                    point.col = pos_tmp;
+                                } else {
+                                    point.col = buf.get_col_length(point.row + point_in_file.row);
                                 }
                             } else {
                                 {
                                     point_in_file.row += 1;
-                                    execute!(out, ScrollUp(1)).unwrap_or_else(|x| {
-                                        close_terminal(x.to_string(), &mut out)
-                                    });
+                                    execute!(out, ScrollUp(1))
+                                        .unwrap_or_else(|x| close_terminal(x.to_string(), out));
+                                }
+                                if pos_tmp < buf.get_col_length(point.row + point_in_file.row){
+                                    point.col = pos_tmp;
+                                }else{
+                                    point.col = buf.get_col_length(point.row + point_in_file.row);
                                 }
                             }
                             MODE::NORMAL
@@ -101,15 +125,25 @@ fn main() {
                         'k' => {
                             if point.row > 0 {
                                 point.row = point.row - 1;
-                                if point.col > buf.get_col_length(point.row) {
-                                    point.col = buf.get_col_length(point.row)
+                                if point.col > buf.get_col_length(point.row + point_in_file.row) {
+                                    point.col = buf.get_col_length(point.row + point_in_file.row)
+                                } else if pos_tmp
+                                    < buf.get_col_length(point.row + point_in_file.row)
+                                {
+                                    point.col = pos_tmp;
+                                } else {
+                                    point.col = buf.get_col_length(point.row + point_in_file.row);
                                 }
                             } else {
                                 if point_in_file.row > 0 {
                                     point_in_file.row -= 1;
-                                    execute!(out, ScrollDown(1)).unwrap_or_else(|e| {
-                                        close_terminal(e.to_string(), &mut out)
-                                    });
+                                    execute!(out, ScrollDown(1))
+                                        .unwrap_or_else(|e| close_terminal(e.to_string(), out));
+                                }
+                                if pos_tmp < buf.get_col_length(point.row + point_in_file.row){
+                                    point.col = pos_tmp;
+                                } else {
+                                   point.col = buf.get_col_length(point.row + point_in_file.row);
                                 }
                             }
                             MODE::NORMAL
@@ -117,17 +151,19 @@ fn main() {
                         'h' => {
                             if point.col > 0 {
                                 point.col = point.col - 1;
+                                pos_tmp = point.col;
                             }
                             MODE::NORMAL
                         }
                         'l' => {
-                            if buf.get_col_length(point.row + point_in_file.row) <= point.col + 1 {
+                            if buf.get_col_length(point.row + point_in_file.row) <= point.col {
                             } else {
                                 point.col = point.col + 1;
+                                pos_tmp = point.col;
                             }
                             MODE::NORMAL
                         }
-                        'd' => {
+                        'x' => {
                             buf.update_contents(delback(
                                 point.col,
                                 point.row + point_in_file.row,
@@ -144,7 +180,11 @@ fn main() {
             }
             MODE::INSERT => {
                 match code {
-                    KeyCode::Esc => state.change_mode(MODE::NORMAL),
+                    KeyCode::Esc => {
+                        execute!(out, SetCursorStyle::SteadyBlock)
+                            .unwrap_or_else(|x| close_terminal(x.to_string(), out));
+                        state.change_mode(MODE::NORMAL);
+                    }
                     KeyCode::Enter => {
                         buf.update_contents(insert(
                             point.col,
@@ -168,7 +208,7 @@ fn main() {
                         if point.col <= 0 {
                             if point.row > 0 {
                                 point.row = point.row - 1;
-                                point.col = buf.get_col_length(point.row);
+                                point.col = buf.get_col_length(point.row + point_in_file.row);
                                 buf.update_contents(delback(
                                     point.col,
                                     point.row + point_in_file.row,
@@ -191,8 +231,7 @@ fn main() {
                 KeyCode::Char(c) => match c {
                     'q' => break,
                     'w' => {
-                        buf.save_file()
-                            .unwrap_or_else(|x| close_terminal(x, &mut out));
+                        buf.save_file().unwrap_or_else(|x| close_terminal(x, out));
                         state.change_mode(MODE::NORMAL);
                     }
                     _ => state.change_mode(MODE::NORMAL),
@@ -205,10 +244,4 @@ fn main() {
             }
         }
     }
-    close_terminal("".to_string(), &mut out);
-}
-fn close_terminal(err: String, out: &mut Stdout) {
-    print!("{}", err);
-    execute!(out, cursor::Show, LeaveAlternateScreen,).expect("failed to close alternate screen");
-    disable_raw_mode().expect("");
 }
