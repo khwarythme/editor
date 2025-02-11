@@ -8,10 +8,7 @@ pub struct Display {
 
 impl Display {
     pub fn update(&mut self, point: [u16; 2], content: &String) -> Result<(), String> {
-        let mut is_ignore = false;
-        let mut col_index = 0;
         let mut row_index = 0;
-        let crlf: [u8; 2] = [0x0d, 0x0a];
         let tmp_content = String::from(content);
         let wsize = window_size().expect("");
         if wsize.rows <= 0 || wsize.columns <= 0 {
@@ -28,6 +25,12 @@ impl Display {
                 row_index += 1;
                 self.buffer.write(chara.as_bytes()).unwrap();
                 self.buffer.write("\r\n".as_bytes()).unwrap();
+            }
+        }
+        if row_index - point[1] < wsize.rows - 2 {
+            while row_index - point[1] < wsize.rows - 2 {
+                self.buffer.write("~\r\n".as_bytes()).unwrap();
+                row_index += 1;
             }
         }
         self.buffer.flush().unwrap();
