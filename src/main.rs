@@ -97,7 +97,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                         'v' => MODE::VISUAL,
                         'j' => {
                             if buf.get_row_length() <= point.row + point_in_file.row + 1 {
-                            } else if window_size().unwrap().rows > point.row {
+                            } else if window_size().unwrap().rows > point.row + 2 {
                                 point.row = point.row + 1;
                                 if point.col > buf.get_col_length(point.row + point_in_file.row) {
                                     point.col = buf.get_col_length(point.row + point_in_file.row)
@@ -114,9 +114,9 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                                     execute!(out, ScrollUp(1))
                                         .unwrap_or_else(|x| close_terminal(x.to_string(), out));
                                 }
-                                if pos_tmp < buf.get_col_length(point.row + point_in_file.row){
+                                if pos_tmp < buf.get_col_length(point.row + point_in_file.row) {
                                     point.col = pos_tmp;
-                                }else{
+                                } else {
                                     point.col = buf.get_col_length(point.row + point_in_file.row);
                                 }
                             }
@@ -140,10 +140,10 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                                     execute!(out, ScrollDown(1))
                                         .unwrap_or_else(|e| close_terminal(e.to_string(), out));
                                 }
-                                if pos_tmp < buf.get_col_length(point.row + point_in_file.row){
+                                if pos_tmp < buf.get_col_length(point.row + point_in_file.row) {
                                     point.col = pos_tmp;
                                 } else {
-                                   point.col = buf.get_col_length(point.row + point_in_file.row);
+                                    point.col = buf.get_col_length(point.row + point_in_file.row);
                                 }
                             }
                             MODE::NORMAL
