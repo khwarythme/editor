@@ -10,7 +10,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventSta
 use crossterm::execute;
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
-use crossterm::terminal::window_size;
+use crossterm::terminal::size;
 use crossterm::terminal::EnterAlternateScreen;
 use crossterm::terminal::LeaveAlternateScreen;
 use crossterm::terminal::{Clear, ClearType};
@@ -55,6 +55,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
     let mut state = State::new();
     let mut pos_tmp: u16 = 0;
     loop {
+        let (size_column, size_row) = size().unwrap();
         execute!(
             out,
             cursor::Show,
@@ -67,7 +68,12 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
         execute!(out, MoveTo(0, 0))
             .unwrap_or_else(|_| close_terminal("[E101] failed to move cursor".to_string(), out));
         display
-            .update([point_in_file.col, point_in_file.row], buf.get_contents())
+            .update(
+                [point_in_file.col, point_in_file.row],
+                buf.get_contents(),
+                size_row,
+                size_column,
+            )
             .unwrap_or_else(|x| close_terminal(x, out));
         execute!(out, MoveTo(point.col, point.row))
             .unwrap_or_else(|_| close_terminal("[E101] failed to move cursor".to_string(), out));
@@ -97,7 +103,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                         'v' => MODE::VISUAL,
                         'j' => {
                             if buf.get_row_length() <= point.row + point_in_file.row + 1 {
-                            } else if window_size().unwrap().rows > point.row + 2 {
+                            } else if size_row > point.row + 2 {
                                 point.row = point.row + 1;
                                 if point.col > buf.get_col_length(point.row + point_in_file.row) {
                                     point.col = buf.get_col_length(point.row + point_in_file.row)
