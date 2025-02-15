@@ -8,7 +8,7 @@ use modules::normal::Normal;
 use modules::show::*;
 
 use crossterm::cursor::SetCursorStyle;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::terminal::size;
 
 use std::env;
@@ -50,10 +50,13 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
             Event::Key(event) => event,
             _ => KeyEvent::new(KeyCode::Null, KeyModifiers::empty()),
         };
+        if input.kind == KeyEventKind::Release {
+            continue;
+        }
         let code = input.code;
         let mode = state.check_mode();
 
-        let mode = match mode {
+        let new_mode = match mode {
             MODE::Normal => Normal::proc_normal(code, display, buf),
             MODE::Insert => {
                 let ret = proc_insert(code, display, buf);
@@ -72,9 +75,13 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
             }
             m => m,
         };
-        if mode == MODE::Quit {
+        if new_mode == MODE::SaveAndQuit {
+            buf.save_file().unwrap();
             break;
         }
-        state.change_mode(mode);
+        if new_mode == MODE::Quit {
+            break;
+        }
+        state.change_mode(new_mode);
     }
 }

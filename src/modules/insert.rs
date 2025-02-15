@@ -68,6 +68,7 @@ pub fn proc_insert(code: KeyCode, display: &mut Display, buf: &mut FileBuffer) -
                 '\n',
             ));
             display.move_cursor_nextpos(MoveDirection::Down, &buf);
+            display.move_cursor_nextpos(MoveDirection::Head, &buf);
             display.update(buf.get_contents()).unwrap();
             MODE::Insert
         }
@@ -84,8 +85,9 @@ pub fn proc_insert(code: KeyCode, display: &mut Display, buf: &mut FileBuffer) -
         }
         KeyCode::Backspace => {
             if display.get_cursor_coordinate_in_file().col <= 0 {
-                let ret = if display.get_cursor_coordinate().col > 0 {
+                let ret = if display.get_cursor_coordinate().row > 0 {
                     display.move_cursor_nextpos(MoveDirection::Up, &buf);
+                    display.move_cursor_nextpos(MoveDirection::Tail, &buf);
                     buf.update_contents(delback(
                         display.get_cursor_coordinate_in_file().col,
                         display.get_cursor_coordinate_in_file().row,

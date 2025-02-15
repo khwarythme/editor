@@ -24,6 +24,8 @@ pub enum MoveDirection {
     Down,
     Left,
     Right,
+    Head,
+    Tail,
 }
 
 impl Display {
@@ -145,6 +147,10 @@ impl Display {
                     self.pos_tmp.col = self.point.col;
                 }
             }
+            MoveDirection::Head => self.point.col = 0,
+            MoveDirection::Tail => {
+                self.point.col = buf.get_col_length(self.get_cursor_coordinate_in_file().row)
+            }
         }
         self.move_cursor_to_point(self.point);
     }
@@ -179,5 +185,14 @@ impl Display {
         execute!(self.out, cursor::Show, LeaveAlternateScreen,)
             .expect("failed to close alternate screen");
         disable_raw_mode().expect("");
+    }
+    pub fn update_info_line(&mut self, msg: &String) {
+        let cursor_pos = self.point;
+        self.move_cursor_to_point(Point {
+            col: 0,
+            row: self.wsize.row,
+        });
+        println!("{}", msg);
+        self.move_cursor_to_point(cursor_pos);
     }
 }

@@ -16,6 +16,21 @@ impl Normal {
                     display.set_cursor_type(SetCursorStyle::BlinkingBar);
                     MODE::Insert
                 }
+                'I' => {
+                    display.move_cursor_nextpos(MoveDirection::Head, buf);
+                    display.set_cursor_type(SetCursorStyle::BlinkingBar);
+                    MODE::Insert
+                }
+                'a' => {
+                    display.move_cursor_nextpos(MoveDirection::Right, buf);
+                    display.set_cursor_type(SetCursorStyle::BlinkingBar);
+                    MODE::Insert
+                }
+                'A' => {
+                    display.move_cursor_nextpos(MoveDirection::Tail, buf);
+                    display.set_cursor_type(SetCursorStyle::BlinkingBar);
+                    MODE::Insert
+                }
                 'v' => MODE::Visual,
                 'j' => {
                     display.move_cursor_nextpos(MoveDirection::Down, &buf);
