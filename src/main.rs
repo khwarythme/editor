@@ -32,7 +32,7 @@ fn main() {
     let path = Path::new(&arg[1]);
     let mut buf = FileBuffer::new(path).expect("cannot open file");
     let mut display = init_window().unwrap();
-    execute!(out, SetCursorStyle::SteadyBlock);
+    execute!(out, SetCursorStyle::SteadyBlock).unwrap();
     handle(&mut display, &mut buf, &mut out);
 
     close_terminal("".to_string(), &mut out);
@@ -54,27 +54,38 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
     let mut point_in_file = Point { col: 0, row: 0 };
     let mut state = State::new();
     let mut pos_tmp: u16 = 0;
+    let mut column_prev: u16 = 0;
+    let mut row_prev: u16 = 0;
+    let mut is_required_update = true;
+
     loop {
         let (size_column, size_row) = size().unwrap();
-        execute!(
-            out,
-            cursor::Show,
-            EnterAlternateScreen,
-            Clear(ClearType::All),
-            MoveTo(point.col, point.row)
-        )
-        .expect("Failed to open alternate screen");
-        execute!(out, Clear(ClearType::All)).unwrap_or_else(|e| close_terminal(e.to_string(), out));
-        execute!(out, MoveTo(0, 0))
-            .unwrap_or_else(|_| close_terminal("[E101] failed to move cursor".to_string(), out));
-        display
-            .update(
-                [point_in_file.col, point_in_file.row],
-                buf.get_contents(),
-                size_row,
-                size_column,
+        if is_required_update || column_prev != size_column || row_prev != size_row {
+            row_prev = size_row;
+            column_prev = size_row;
+            execute!(
+                out,
+                cursor::Show,
+                EnterAlternateScreen,
+                Clear(ClearType::All),
+                MoveTo(point.col, point.row)
             )
-            .unwrap_or_else(|x| close_terminal(x, out));
+            .expect("Failed to open alternate screen");
+            execute!(out, Clear(ClearType::All))
+                .unwrap_or_else(|e| close_terminal(e.to_string(), out));
+            execute!(out, MoveTo(0, 0)).unwrap_or_else(|_| {
+                close_terminal("[E101] failed to move cursor".to_string(), out)
+            });
+            display
+                .update(
+                    [point_in_file.col, point_in_file.row],
+                    buf.get_contents(),
+                    size_row,
+                    size_column,
+                )
+                .unwrap_or_else(|x| close_terminal(x, out));
+            is_required_update = false;
+        }
         execute!(out, MoveTo(point.col, point.row))
             .unwrap_or_else(|_| close_terminal("[E101] failed to move cursor".to_string(), out));
 
@@ -119,6 +130,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                                     point_in_file.row += 1;
                                     execute!(out, ScrollUp(1))
                                         .unwrap_or_else(|x| close_terminal(x.to_string(), out));
+                                    is_required_update = true;
                                 }
                                 if pos_tmp < buf.get_col_length(point.row + point_in_file.row) {
                                     point.col = pos_tmp;
@@ -145,6 +157,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                                     point_in_file.row -= 1;
                                     execute!(out, ScrollDown(1))
                                         .unwrap_or_else(|e| close_terminal(e.to_string(), out));
+                                    is_required_update = true;
                                 }
                                 if pos_tmp < buf.get_col_length(point.row + point_in_file.row) {
                                     point.col = pos_tmp;
@@ -199,7 +212,8 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                             '\n',
                         ));
                         point.col = 0;
-                        point.row = point.row + 1
+                        point.row = point.row + 1;
+                        is_required_update = true;
                     }
                     KeyCode::Char(c) => {
                         buf.update_contents(insert(
@@ -209,6 +223,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                             c,
                         ));
                         point.col = point.col + 1;
+                        is_required_update = true;
                     }
                     KeyCode::Backspace => {
                         if point.col <= 0 {
@@ -229,6 +244,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer, out: &mut Stdout) {
                                 buf.get_contents(),
                             ));
                         }
+                        is_required_update = true;
                     }
                     _ => (),
                 };
