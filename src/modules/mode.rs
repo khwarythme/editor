@@ -1,9 +1,12 @@
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum MODE {
-    NORMAL,
-    INSERT,
-    VISUAL,
-    COMMAND,
+    Normal,
+    Insert,
+    Visual,
+    Command,
+    Quit,
+    Save,
+    SaveAndQuit,
 }
 
 #[derive(Debug)]
@@ -27,7 +30,7 @@ impl State {
     }
     pub fn new() -> State {
         State {
-            mode: MODE::NORMAL,
+            mode: MODE::Normal,
             is_read_only: false,
         }
     }

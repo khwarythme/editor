@@ -40,8 +40,8 @@ impl FileBuffer {
             Err(e) => Err(e.to_string()),
         }
     }
-    pub fn get_contents(&self) -> &String {
-        &self.contents
+    pub fn get_contents(&self) -> String {
+        String::from(self.contents.as_str())
     }
     pub fn update_contents(&mut self, new_contents: String) {
         self.contents = String::from(new_contents);
