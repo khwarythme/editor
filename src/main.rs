@@ -5,6 +5,7 @@ use modules::file::FileBuffer;
 use modules::insert::proc_insert;
 use modules::mode::{State, MODE};
 use modules::normal::Normal;
+use modules::search::Search;
 use modules::show::*;
 use modules::undo::Undo;
 
@@ -36,6 +37,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
     let mut command: command::Command = command::Command::new();
     display.update_all(buf.get_contents()).unwrap();
     let mut undo = Undo::new();
+    let mut sch = Search::new();
 
     loop {
         let (size_column, size_row) = size().unwrap();
@@ -75,6 +77,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
                 buf.save_file().unwrap();
                 MODE::Quit
             }
+            MODE::Search => sch.proc_search(code, buf),
             m => m,
         };
         if new_mode == MODE::SaveAndQuit {

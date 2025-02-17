@@ -1,3 +1,6 @@
+use lua::libc::_SC_TTY_NAME_MAX;
+
+use crate::modules::coordinate::Point;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{BufReader, BufWriter};
@@ -8,6 +11,8 @@ pub struct FileBuffer {
     contents: String,
     is_read_only: bool,
     path: String,
+    search_result: Vec<Point>,
+    search_result_index: u16,
 }
 
 impl FileBuffer {
@@ -36,6 +41,8 @@ impl FileBuffer {
                 contents: String::from_utf8(buf).unwrap_or(String::from("")),
                 is_read_only: false,
                 path: String::from(path.to_str().unwrap_or("")),
+                search_result: vec![],
+                search_result_index: 0,
             }),
             Err(e) => Err(e.to_string()),
         }
@@ -83,5 +90,11 @@ impl FileBuffer {
     pub fn get_row_length(&self) -> u16 {
         let v: Vec<&str> = self.contents.split('\n').collect();
         v.len() as u16
+    }
+    pub fn search_result_register(&mut self, result: Vec<Point>) {
+        self.search_result = result;
+    }
+    pub fn get_next_searchresult(&mut self) -> Option<Point> {
+        self.search_result.pop()
     }
 }

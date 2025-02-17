@@ -5,5 +5,6 @@ pub mod history;
 pub mod insert;
 pub mod mode;
 pub mod normal;
+pub mod search;
 pub mod show;
 pub mod undo;

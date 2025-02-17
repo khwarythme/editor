@@ -79,6 +79,14 @@ impl Normal {
                     });
                     MODE::Normal
                 }
+                '/' => MODE::Search,
+                'n' => {
+                    match buf.get_next_searchresult() {
+                        Some(point) => display.move_to_point(buf, point),
+                        None => (),
+                    };
+                    MODE::Normal
+                }
 
                 _ => MODE::Normal,
             },

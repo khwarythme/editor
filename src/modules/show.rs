@@ -90,6 +90,23 @@ impl Display {
             out: stdout(),
         }
     }
+    pub fn move_to_point(&mut self, buf: &mut FileBuffer, point: Point) {
+        if point.row <= self.wsize.row / 2 {
+            self.point_in_file.row = 0;
+        } else {
+            self.point_in_file.row = point.row - self.wsize.row / 2;
+        }
+        self.point_in_file.col = point.col;
+        self.point.row = if point.row <= self.wsize.row / 2 {
+            point.row % self.wsize.row
+        } else {
+            self.wsize.row / 2
+        };
+        self.point.col = point.col;
+        self.update_all(buf.get_contents()).unwrap();
+        queue!(self.out, MoveTo(self.point.col, self.point.row));
+        self.out.flush();
+    }
     pub fn move_cursor_to_point(&mut self, point: Point) {
         queue!(self.out, MoveTo(point.col, point.row)).unwrap();
         self.out.flush();

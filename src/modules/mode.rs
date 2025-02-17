@@ -7,6 +7,7 @@ pub enum MODE {
     Quit,
     Save,
     SaveAndQuit,
+    Search,
 }
 
 #[derive(Debug)]
