@@ -94,7 +94,7 @@ pub fn proc_insert(
             );
             display.move_cursor_nextpos(MoveDirection::Down, &buf);
             display.move_cursor_nextpos(MoveDirection::Head, &buf);
-            display.update(buf.get_contents()).unwrap();
+            display.update_all(buf.get_contents()).unwrap();
             MODE::Insert
         }
         KeyCode::Char(c) => {
@@ -113,7 +113,7 @@ pub fn proc_insert(
                 ],
             );
             display.move_cursor_nextpos(MoveDirection::Right, &buf);
-            display.update(buf.get_contents()).unwrap();
+            display.update_all(buf.get_contents()).unwrap();
             MODE::Insert
         }
         KeyCode::Backspace => {
@@ -138,7 +138,7 @@ pub fn proc_insert(
                 delchar,
                 [tmp_pos.col as u32, tmp_pos.row as u32],
             );
-            display.update(buf.get_contents()).unwrap();
+            display.update_all(buf.get_contents()).unwrap();
             MODE::Insert
         }
         _ => MODE::Insert,

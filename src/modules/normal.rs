@@ -67,12 +67,12 @@ impl Normal {
                     );
                     buf.update_contents(result);
                     undo.add_do_history(Operation::DELETE, delchar, [col as u32, row as u32]);
-                    display.update(buf.get_contents()).unwrap();
+                    display.update_all(buf.get_contents()).unwrap();
                     MODE::Normal
                 }
                 'u' => {
                     let pos = undo.undo(buf);
-                    display.update(buf.get_contents()).unwrap();
+                    display.update_all(buf.get_contents()).unwrap();
                     display.move_cursor_to_point(Point {
                         col: pos[0] as u16,
                         row: pos[1] as u16,

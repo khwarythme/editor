@@ -34,7 +34,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
     let mut row_prev: u16 = 0;
     let is_required_update = true;
     let mut command: command::Command = command::Command::new();
-    display.update(buf.get_contents()).unwrap();
+    display.update_all(buf.get_contents()).unwrap();
     let mut undo = Undo::new();
 
     loop {
@@ -62,7 +62,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
             MODE::Normal => Normal::proc_normal(code, display, buf, &mut undo),
             MODE::Insert => {
                 let ret = proc_insert(code, display, buf, &mut undo);
-                display.update(buf.get_contents()).unwrap();
+                display.update_all(buf.get_contents()).unwrap();
                 ret
             }
             MODE::Command => command.proc_command(code, buf),

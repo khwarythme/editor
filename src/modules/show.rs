@@ -2,14 +2,17 @@ use crate::modules::coordinate::Point;
 use crate::modules::file::FileBuffer;
 use crossterm::cursor::MoveTo;
 use crossterm::cursor::{self, SetCursorStyle};
-use crossterm::execute;
+use crossterm::queue;
+use crossterm::style::Print;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use crossterm::terminal::{Clear, ClearType};
+use crossterm::terminal::{ScrollDown, ScrollUp};
 use std::io::prelude::*;
 use std::io::BufWriter;
 use std::io::{stdout, Stdout};
+use std::thread::ScopedJoinHandle;
 
 pub struct Display {
     buffer: BufWriter<Stdout>,
@@ -29,12 +32,26 @@ pub enum MoveDirection {
 }
 
 impl Display {
-    pub fn update(&mut self, content: String) -> Result<(), String> {
+    fn update_line(&mut self, content: String, row: u16) {
+        let tmp_cursor_pos = row - self.point_in_file.row;
+        queue!(self.out, MoveTo(0, tmp_cursor_pos));
+        let tmp_content = String::from(content);
+        let printstring = tmp_content
+            .split('\n')
+            .into_iter()
+            .nth(row as usize)
+            .unwrap();
+        let printstring = format!("{}\n", printstring);
+
+        queue!(self.out, Print(printstring));
+        queue!(self.out, MoveTo(self.point.col, self.point.row));
+    }
+    pub fn update_all(&mut self, content: String) -> Result<(), String> {
         let mut row_index = 0;
         let tmp_content = String::from(content);
-        execute!(self.out, Clear(ClearType::All))
+        queue!(self.out, Clear(ClearType::All))
             .unwrap_or_else(|e| self.close_terminal(e.to_string()));
-        execute!(self.out, MoveTo(0, 0))
+        queue!(self.out, MoveTo(0, 0))
             .unwrap_or_else(|_| self.close_terminal("[E101] failed to move cursor".to_string()));
         for chara in tmp_content.split('\n') {
             if row_index > self.wsize.row - 2 + self.point_in_file.row {
@@ -55,6 +72,7 @@ impl Display {
                 row_index += 1;
             }
         }
+        self.out.flush().unwrap();
         self.buffer.flush().unwrap();
         self.move_cursor_to_point(self.point);
         Ok(())
@@ -73,7 +91,8 @@ impl Display {
         }
     }
     pub fn move_cursor_to_point(&mut self, point: Point) {
-        execute!(self.out, MoveTo(point.col, point.row)).unwrap();
+        queue!(self.out, MoveTo(point.col, point.row)).unwrap();
+        self.out.flush();
     }
     pub fn move_cursor_nextpos(&mut self, direction: MoveDirection, buf: &FileBuffer) {
         match direction {
@@ -93,8 +112,9 @@ impl Display {
                             buf.get_col_length(self.point.row + self.point_in_file.row);
                     }
                 } else {
+                    queue!(self.out, ScrollUp(1)).unwrap();
                     self.point_in_file.row += 1;
-                    self.update(buf.get_contents()).unwrap();
+                    self.update_line(buf.get_contents(), self.get_cursor_coordinate_in_file().row);
                     if self.pos_tmp.col
                         < buf.get_col_length(self.point.row + self.point_in_file.row)
                     {
@@ -121,8 +141,12 @@ impl Display {
                     }
                 } else {
                     if self.point_in_file.row > 0 {
+                        queue!(self.out, ScrollDown(1)).unwrap();
                         self.point_in_file.row -= 1;
-                        self.update(buf.get_contents()).unwrap();
+                        self.update_line(
+                            buf.get_contents(),
+                            self.get_cursor_coordinate_in_file().row,
+                        );
                     }
                     if self.pos_tmp.col
                         < buf.get_col_length(self.point.row + self.point_in_file.row)
@@ -167,10 +191,10 @@ impl Display {
         }
     }
     pub fn set_cursor_type(&mut self, style: SetCursorStyle) {
-        execute!(self.out, style).unwrap();
+        queue!(self.out, style).unwrap();
     }
     pub fn init_window(&mut self) {
-        execute!(
+        queue!(
             self.out,
             cursor::Show,
             EnterAlternateScreen,
@@ -179,12 +203,14 @@ impl Display {
         )
         .expect("Failed to open alternate screen");
         enable_raw_mode().expect("Failed to open raw mode");
+        self.out.flush().unwrap();
     }
     pub fn close_terminal(&mut self, err: String) {
         print!("{}", err);
-        execute!(self.out, cursor::Show, LeaveAlternateScreen,)
+        queue!(self.out, cursor::Show, LeaveAlternateScreen,)
             .expect("failed to close alternate screen");
         disable_raw_mode().expect("");
+        self.out.flush().unwrap();
     }
     pub fn update_info_line(&mut self, msg: &String) {
         let cursor_pos = self.point;
