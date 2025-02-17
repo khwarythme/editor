@@ -6,3 +6,4 @@ pub mod insert;
 pub mod mode;
 pub mod normal;
 pub mod show;
+pub mod undo;

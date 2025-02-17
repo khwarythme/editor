@@ -1,14 +1,23 @@
+use crate::modules::coordinate::Point;
 use crate::modules::file::FileBuffer;
 use crate::modules::insert::delback;
 use crate::modules::mode::MODE;
 use crate::modules::show::{Display, MoveDirection};
+use crate::modules::undo::Undo;
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::KeyCode;
+
+use super::history::Operation;
 
 pub struct Normal {}
 
 impl Normal {
-    pub fn proc_normal(code: KeyCode, display: &mut Display, buf: &mut FileBuffer) -> MODE {
+    pub fn proc_normal(
+        code: KeyCode,
+        display: &mut Display,
+        buf: &mut FileBuffer,
+        undo: &mut Undo,
+    ) -> MODE {
         match code {
             KeyCode::Char(c) => match c {
                 ':' => MODE::Command,
@@ -49,12 +58,25 @@ impl Normal {
                     MODE::Normal
                 }
                 'x' => {
-                    buf.update_contents(delback(
+                    let col = display.get_cursor_coordinate_in_file().col;
+                    let row = display.get_cursor_coordinate_in_file().row;
+                    let (result, delchar) = delback(
                         display.get_cursor_coordinate_in_file().col,
                         display.get_cursor_coordinate_in_file().row,
                         buf.get_contents(),
-                    ));
+                    );
+                    buf.update_contents(result);
+                    undo.add_do_history(Operation::DELETE, delchar, [col as u32, row as u32]);
                     display.update(buf.get_contents()).unwrap();
+                    MODE::Normal
+                }
+                'u' => {
+                    let pos = undo.undo(buf);
+                    display.update(buf.get_contents()).unwrap();
+                    display.move_cursor_to_point(Point {
+                        col: pos[0] as u16,
+                        row: pos[1] as u16,
+                    });
                     MODE::Normal
                 }
 

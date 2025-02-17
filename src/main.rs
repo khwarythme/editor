@@ -6,6 +6,7 @@ use modules::insert::proc_insert;
 use modules::mode::{State, MODE};
 use modules::normal::Normal;
 use modules::show::*;
+use modules::undo::Undo;
 
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -34,6 +35,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
     let is_required_update = true;
     let mut command: command::Command = command::Command::new();
     display.update(buf.get_contents()).unwrap();
+    let mut undo = Undo::new();
 
     loop {
         let (size_column, size_row) = size().unwrap();
@@ -57,9 +59,9 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
         let mode = state.check_mode();
 
         let new_mode = match mode {
-            MODE::Normal => Normal::proc_normal(code, display, buf),
+            MODE::Normal => Normal::proc_normal(code, display, buf, &mut undo),
             MODE::Insert => {
-                let ret = proc_insert(code, display, buf);
+                let ret = proc_insert(code, display, buf, &mut undo);
                 display.update(buf.get_contents()).unwrap();
                 ret
             }
