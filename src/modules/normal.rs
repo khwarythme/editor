@@ -9,6 +9,7 @@ use crossterm::event::KeyCode;
 
 use super::history::Operation;
 
+#[derive(Debug)]
 pub struct Normal {}
 
 impl Normal {
@@ -73,10 +74,13 @@ impl Normal {
                 'u' => {
                     let pos = undo.undo(buf);
                     display.update_all(buf.get_contents()).unwrap();
-                    display.move_to_point(buf,Point {
-                        col: pos[0] as u16,
-                        row: pos[1] as u16,
-                    });
+                    display.move_to_point(
+                        buf,
+                        Point {
+                            col: pos[0] as u16,
+                            row: pos[1] as u16,
+                        },
+                    );
                     MODE::Normal
                 }
                 '/' => MODE::Search,
