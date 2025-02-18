@@ -73,7 +73,7 @@ impl Normal {
                 'u' => {
                     let pos = undo.undo(buf);
                     display.update_all(buf.get_contents()).unwrap();
-                    display.move_cursor_to_point(Point {
+                    display.move_to_point(Point {
                         col: pos[0] as u16,
                         row: pos[1] as u16,
                     });
