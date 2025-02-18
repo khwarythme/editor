@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::io::{BufReader, BufWriter};
 
 use std::path::Path;
-
+#[derive(Debug)]
 pub struct FileBuffer {
     contents: String,
     is_read_only: bool,
@@ -71,6 +71,9 @@ impl FileBuffer {
     pub fn get_read_only(&self) -> bool {
         self.is_read_only
     }
+    pub fn set_read_only(&mut self, dst: bool) {
+        self.is_read_only = dst;
+    }
     pub fn get_col_length(&self, row: u16) -> u16 {
         let mut row_count = 0;
         if self.contents.len() < 1 {
@@ -90,9 +93,63 @@ impl FileBuffer {
         v.len() as u16
     }
     pub fn search_result_register(&mut self, result: Vec<Point>) {
+        self.search_result_index = 0;
         self.search_result = result;
     }
     pub fn get_next_searchresult(&mut self) -> Option<Point> {
-        self.search_result.pop()
+        if self.search_result.len() > 0 {
+            self.search_result_index += 1;
+            Some(Point {
+                col: self.search_result[self.search_result_index as usize].col,
+                row: self.search_result[self.search_result_index as usize].row,
+            })
+        } else {
+            None
+        }
+    }
+}
+#[cfg(test)]
+mod FileTest {
+    use super::FileBuffer;
+
+    #[test]
+    fn test_read_write_contents() {
+        let p = std::path::Path::new("test.txt");
+        let mut buf = FileBuffer::new(&p).unwrap();
+        assert_eq!(std::fs::exists(p).unwrap(), true);
+        buf.update_contents(String::from("new string"));
+        assert_eq!(buf.get_contents(), String::from("new string"));
+    }
+    #[test]
+    fn test_get_set_readonly() {
+        let p = std::path::Path::new("test.txt");
+        let mut buf = FileBuffer::new(&p).unwrap();
+        assert_eq!(std::fs::exists(p).unwrap(), true);
+        buf.set_read_only(true);
+        assert!(buf.get_read_only());
+        buf.set_read_only(false);
+        assert!(!buf.get_read_only());
+    }
+    #[test]
+    fn test_save_file() {
+        let p = std::path::Path::new("test.txt");
+        let mut buf = FileBuffer::new(&p).unwrap();
+        assert_eq!(std::fs::exists(p).unwrap(), true);
+        buf.update_contents(String::from("new string2"));
+        assert_eq!(buf.get_contents(), String::from("new string2"));
+        assert_eq!(buf.save_file(), Ok(()));
+        let buf2 = FileBuffer::new(&p).unwrap();
+        assert_eq!(buf2.get_contents(), String::from("new string2"));
+    }
+    #[test]
+    fn test_get_length() {
+        let p = std::path::Path::new("test.txt");
+        let mut buf = FileBuffer::new(&p).unwrap();
+        assert_eq!(std::fs::exists(p).unwrap(), true);
+        buf.update_contents(String::from("1234567890\n2234567890\n3234567890\n"));
+        assert_eq!(buf.get_row_length(), 4);
+        assert_eq!(buf.get_col_length(0), 10);
+        assert_eq!(buf.get_col_length(1), 10);
+        assert_eq!(buf.get_col_length(2), 10);
     }
 }
