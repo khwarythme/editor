@@ -1,5 +1,3 @@
-use lua::libc::_SC_TTY_NAME_MAX;
-
 use crate::modules::coordinate::Point;
 use std::fs::File;
 use std::io::prelude::*;
