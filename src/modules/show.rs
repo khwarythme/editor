@@ -96,7 +96,6 @@ impl Display {
         } else {
             self.point_in_file.row = point.row - self.wsize.row / 2;
         }
-        self.point_in_file.col = point.col;
         self.point.row = if point.row <= self.wsize.row / 2 {
             point.row % self.wsize.row
         } else {
