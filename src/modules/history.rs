@@ -38,17 +38,17 @@ impl HistoryRecord {
 impl History {
     pub fn new() -> History {
         History {
-            history: VecDeque::with_capacity(20),
+            history: VecDeque::with_capacity(1000),
             index: 0,
         }
     }
     pub fn add(&mut self, ope: Operation, target: Vec<char>, pos: [u32; 2]) {
-        if self.history.len() >= 19 {
+        if self.history.len() >= 999{
             self.history.pop_front();
-            self.index -= self.index;
+            self.index -= 1;
         }
         self.history.push_back(HistoryRecord::new(ope, target, pos));
-        self.index += self.index + 1;
+        self.index += 1;
     }
     pub fn undo(&mut self) -> HistoryRecord {
         match self.history.pop_back() {
