@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 #[derive(Clone)]
-struct HistoryRecord {
+pub struct HistoryRecord {
     ope: Operation,
     target: Vec<char>,
     position: [u32; 2],
@@ -25,24 +25,33 @@ impl HistoryRecord {
             position: pos,
         }
     }
+    pub fn get_operation(&self) -> Operation {
+        self.ope
+    }
+    pub fn get_pos(&self) -> [u32; 2] {
+        self.position
+    }
+    pub fn get_target(&self) -> &Vec<char> {
+        &self.target
+    }
 }
 impl History {
-    fn new() -> History {
+    pub fn new() -> History {
         History {
-            history: VecDeque::with_capacity(20),
+            history: VecDeque::with_capacity(1000),
             index: 0,
         }
     }
-    fn add(&mut self, ope: Operation, target: Vec<char>, pos: [u32; 2]) {
-        if self.history.len() >= 19 {
+    pub fn add(&mut self, ope: Operation, target: Vec<char>, pos: [u32; 2]) {
+        if self.history.len() >= 999{
             self.history.pop_front();
-            self.index -= self.index;
+            self.index -= 1;
         }
         self.history.push_back(HistoryRecord::new(ope, target, pos));
-        self.index += self.index + 1;
+        self.index += 1;
     }
-    fn undo(&mut self) -> HistoryRecord {
-        match (self.history.pop_back()) {
+    pub fn undo(&mut self) -> HistoryRecord {
+        match self.history.pop_back() {
             Some(t) => t,
             None => HistoryRecord::new(Operation::HEAD, Vec::new(), [0, 0]),
         }
