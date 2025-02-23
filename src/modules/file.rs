@@ -98,7 +98,11 @@ impl FileBuffer {
     }
     pub fn get_next_searchresult(&mut self) -> Option<Point> {
         if self.search_result.len() > 0 {
-            self.search_result_index += 1;
+            if self.search_result_index + 1 < self.search_result.len() as u16 {
+                self.search_result_index += 1;
+            } else {
+                self.search_result_index = 0;
+            }
             Some(Point {
                 col: self.search_result[self.search_result_index as usize].col,
                 row: self.search_result[self.search_result_index as usize].row,
