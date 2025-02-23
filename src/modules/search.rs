@@ -26,12 +26,11 @@ impl Search {
 }
 pub fn search_string(buf: String, ptn: &str) -> Vec<Point> {
     let mut ret: Vec<Point> = vec![];
-    let mut ptnlst = ptn.chars();
     let matchsize = ptn.len();
-    let mut row: u16 = 0;
+    let mut row = 0;
     for line in buf.split('\n') {
         let mut matchindex = 0;
-        let mut col: u16 = 0;
+        let mut col = 0;
         for charactor in line.chars() {
             let p = match ptn.chars().nth(matchindex) {
                 Some(a) => a,
@@ -39,14 +38,14 @@ pub fn search_string(buf: String, ptn: &str) -> Vec<Point> {
             };
             if p != charactor {
                 if matchindex > 0 {
-                    col += matchindex as u16;
+                    col += matchindex;
                 }
                 matchindex = 0;
                 col += 1;
             } else {
                 matchindex += 1;
                 if matchindex == matchsize {
-                    ret.push(Point { col: col, row: row });
+                    ret.push(Point { col, row });
                 }
             }
         }

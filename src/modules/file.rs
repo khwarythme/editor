@@ -74,19 +74,16 @@ impl FileBuffer {
     pub fn set_read_only(&mut self, dst: bool) {
         self.is_read_only = dst;
     }
-    pub fn get_col_length(&self, row: u16) -> u16 {
-        let mut row_count = 0;
-        if self.contents.len() < 1 {
-            return 0;
-        } else {
-            for col in self.contents.split('\n') {
-                if row_count == row {
-                    return col.len() as u16;
-                }
-                row_count = row_count + 1;
-            }
-            return 0;
-        };
+    pub fn get_col_length(&self, row: usize) -> usize {
+        let r: Vec<char> = self
+            .contents
+            .lines()
+            .nth(row)
+            .unwrap_or("")
+            .to_string()
+            .chars()
+            .collect();
+        r.len()
     }
     pub fn get_row_length(&self) -> u16 {
         let v: Vec<&str> = self.contents.split('\n').collect();

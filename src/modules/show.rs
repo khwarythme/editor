@@ -12,7 +12,6 @@ use crossterm::terminal::{ScrollDown, ScrollUp};
 use std::io::prelude::*;
 use std::io::BufWriter;
 use std::io::{stdout, Stdout};
-use std::thread::ScopedJoinHandle;
 
 pub struct Display {
     buffer: BufWriter<Stdout>,
@@ -32,9 +31,9 @@ pub enum MoveDirection {
 }
 
 impl Display {
-    fn update_line(&mut self, content: String, row: u16) {
+    fn update_line(&mut self, content: String, row: usize) {
         let tmp_cursor_pos = row - self.point_in_file.row;
-        queue!(self.out, MoveTo(0, tmp_cursor_pos));
+        let _ = queue!(self.out, MoveTo(0, tmp_cursor_pos as u16));
         let tmp_content = String::from(content);
         let printstring = tmp_content
             .split('\n')
@@ -43,8 +42,11 @@ impl Display {
             .unwrap();
         let printstring = format!("{}\n", printstring);
 
-        queue!(self.out, Print(printstring));
-        queue!(self.out, MoveTo(self.point.col, self.point.row));
+        let _ = queue!(self.out, Print(printstring));
+        let _ = queue!(
+            self.out,
+            MoveTo(self.point.col as u16, self.point.row as u16)
+        );
     }
     pub fn update_all(&mut self, content: String) -> Result<(), String> {
         let mut row_index = 0;
@@ -103,17 +105,21 @@ impl Display {
         };
         self.point.col = point.col;
         self.update_all(buf.get_contents()).unwrap();
-        queue!(self.out, MoveTo(self.point.col, self.point.row));
-        self.out.flush();
+        let _ = queue!(
+            self.out,
+            MoveTo(self.point.col as u16, self.point.row as u16)
+        );
+        let _ = self.out.flush();
     }
     pub fn move_cursor_to_point(&mut self, point: Point) {
-        queue!(self.out, MoveTo(point.col, point.row)).unwrap();
-        self.out.flush();
+        queue!(self.out, MoveTo(point.col as u16, point.row as u16)).unwrap();
+        let _ = self.out.flush();
     }
     pub fn move_cursor_nextpos(&mut self, direction: MoveDirection, buf: &FileBuffer) {
         match direction {
             MoveDirection::Down => {
-                if buf.get_row_length() <= self.point.row + self.point_in_file.row + 1 {
+                if buf.get_row_length() <= self.point.row as u16 + self.point_in_file.row as u16 + 1
+                {
                 } else if self.wsize.row > self.point.row + 2 {
                     self.point.row = self.point.row + 1;
                     if self.point.col > buf.get_col_length(self.point.row + self.point_in_file.row)
@@ -215,7 +221,7 @@ impl Display {
             cursor::Show,
             EnterAlternateScreen,
             Clear(ClearType::All),
-            MoveTo(self.point.col, self.point.row)
+            MoveTo(self.point.col as u16, self.point.row as u16)
         )
         .expect("Failed to open alternate screen");
         enable_raw_mode().expect("Failed to open raw mode");

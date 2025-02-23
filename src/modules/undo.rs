@@ -2,6 +2,8 @@ use crate::modules::file::FileBuffer;
 use crate::modules::history::*;
 use crate::modules::insert::*;
 
+use super::coordinate::Point;
+
 pub struct Undo {
     history: History,
     undo_history: History,
@@ -14,17 +16,17 @@ impl Undo {
             undo_history: History::new(),
         }
     }
-    pub fn add_do_history(&mut self, op: Operation, target: Vec<char>, pos: [u32; 2]) {
+    pub fn add_do_history(&mut self, op: Operation, target: Vec<char>, pos: Point) {
         self.history.add(op, target, pos);
     }
-    pub fn undo(&mut self, buf: &mut FileBuffer) -> [u32; 2] {
+    pub fn undo(&mut self, buf: &mut FileBuffer) -> Point {
         let record = self.history.undo();
         match record.get_operation() {
             Operation::HEAD => (),
             Operation::ADD => {
                 let (result, delchar) = delback(
-                    record.get_pos()[0] as u16,
-                    record.get_pos()[1] as u16,
+                    record.get_pos().col,
+                    record.get_pos().row,
                     buf.get_contents(),
                 );
 
@@ -34,8 +36,8 @@ impl Undo {
             }
             Operation::DELETE => {
                 buf.update_contents(insert(
-                    record.get_pos()[0] as u16,
-                    record.get_pos()[1] as u16,
+                    record.get_pos().col,
+                    record.get_pos().row,
                     buf.get_contents(),
                     record.get_target()[0],
                 ));
@@ -50,4 +52,3 @@ impl Undo {
         record.get_pos()
     }
 }
-

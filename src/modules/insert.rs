@@ -6,10 +6,11 @@ use crate::modules::undo::Undo;
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::KeyCode;
 
+use super::coordinate::Point;
 use super::file::FileBuffer;
 
 /// insert a charactor on a point.
-pub fn insert(col: u16, row: u16, base_string: String, charactor: char) -> String {
+pub fn insert(col: usize, row: usize, base_string: String, charactor: char) -> String {
     // create copy string
     let tmp = String::from(base_string);
     let mut count = 0;
@@ -32,7 +33,7 @@ pub fn insert(col: u16, row: u16, base_string: String, charactor: char) -> Strin
     }
     String::from(result)
 }
-pub fn delback(col: u16, row: u16, base_string: String) -> (String, Vec<char>) {
+pub fn delback(col: usize, row: usize, base_string: String) -> (String, Vec<char>) {
     let tmp = String::from(base_string);
     let mut count = 0;
     let mut after = String::new();
@@ -47,7 +48,7 @@ pub fn delback(col: u16, row: u16, base_string: String) -> (String, Vec<char>) {
         }
         let mut tmpstring = format!("{}", content);
         if count == row {
-            if col < tmpstring.len() as u16 {
+            if col < tmpstring.len() {
                 let mut colcount = 0;
                 for charactor in tmpstring.chars() {
                     if colcount == col {
@@ -87,10 +88,10 @@ pub fn proc_insert(
             undo.add_do_history(
                 Operation::ADD,
                 vec!['\n' as char],
-                [
-                    display.get_cursor_coordinate_in_file().col as u32,
-                    display.get_cursor_coordinate_in_file().row as u32,
-                ],
+                Point {
+                    col: display.get_cursor_coordinate_in_file().col,
+                    row: display.get_cursor_coordinate_in_file().row,
+                },
             );
             display.move_cursor_nextpos(MoveDirection::Down, &buf);
             display.move_cursor_nextpos(MoveDirection::Head, &buf);
@@ -107,10 +108,10 @@ pub fn proc_insert(
             undo.add_do_history(
                 Operation::ADD,
                 vec![c as char],
-                [
-                    display.get_cursor_coordinate_in_file().col as u32,
-                    display.get_cursor_coordinate_in_file().row as u32,
-                ],
+                Point {
+                    col: display.get_cursor_coordinate_in_file().col,
+                    row: display.get_cursor_coordinate_in_file().row,
+                },
             );
             display.move_cursor_nextpos(MoveDirection::Right, &buf);
             display.update_all(buf.get_contents()).unwrap();
@@ -136,7 +137,10 @@ pub fn proc_insert(
             undo.add_do_history(
                 Operation::DELETE,
                 delchar,
-                [tmp_pos.col as u32, tmp_pos.row as u32],
+                Point {
+                    col: tmp_pos.col,
+                    row: tmp_pos.row,
+                },
             );
             display.update_all(buf.get_contents()).unwrap();
             MODE::Insert

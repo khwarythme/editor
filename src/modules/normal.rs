@@ -67,7 +67,7 @@ impl Normal {
                         buf.get_contents(),
                     );
                     buf.update_contents(result);
-                    undo.add_do_history(Operation::DELETE, delchar, [col as u32, row as u32]);
+                    undo.add_do_history(Operation::DELETE, delchar, Point { col, row });
                     display.update_all(buf.get_contents()).unwrap();
                     MODE::Normal
                 }
@@ -77,8 +77,8 @@ impl Normal {
                     display.move_to_point(
                         buf,
                         Point {
-                            col: pos[0] as u16,
-                            row: pos[1] as u16,
+                            col: pos.col,
+                            row: pos.row,
                         },
                     );
                     MODE::Normal

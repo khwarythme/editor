@@ -22,7 +22,10 @@ fn main() {
     let path = Path::new(&arg[1]);
     let mut buf = FileBuffer::new(path).expect("cannot open file");
     let (col, row) = size().unwrap();
-    let mut display = Display::new(Point { col: col, row: row });
+    let mut display = Display::new(Point {
+        col: col as usize,
+        row: row as usize,
+    });
     display.init_window();
     display.set_cursor_type(SetCursorStyle::SteadyBlock);
     handle(&mut display, &mut buf);
@@ -43,8 +46,8 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
         let (size_column, size_row) = size().unwrap();
         if is_required_update || column_prev != size_column || row_prev != size_row {
             display.update_wsize(Point {
-                col: size_column,
-                row: size_row,
+                col: size_column as usize,
+                row: size_row as usize,
             });
             row_prev = size_row;
             column_prev = size_column;
