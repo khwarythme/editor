@@ -1,13 +1,13 @@
 mod modules;
 use modules::command;
 use modules::coordinate::Point;
+use modules::edit::Undo;
 use modules::file::FileBuffer;
 use modules::insert::proc_insert;
 use modules::mode::{State, MODE};
 use modules::normal::Normal;
 use modules::search::Search;
 use modules::show::*;
-use modules::undo::Undo;
 
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};

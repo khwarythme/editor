@@ -1,9 +1,9 @@
+use super::edit::Undo;
+use super::edit::{del, insert};
 use crate::modules::coordinate::Point;
 use crate::modules::file::FileBuffer;
-use crate::modules::insert::delback;
 use crate::modules::mode::MODE;
 use crate::modules::show::{Display, MoveDirection};
-use crate::modules::undo::Undo;
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::KeyCode;
 
@@ -61,10 +61,10 @@ impl Normal {
                 'x' => {
                     let col = display.get_cursor_coordinate_in_file().col;
                     let row = display.get_cursor_coordinate_in_file().row;
-                    let (result, delchar) = delback(
-                        display.get_cursor_coordinate_in_file().col,
-                        display.get_cursor_coordinate_in_file().row,
+                    let (result, delchar) = del(
+                        display.get_cursor_coordinate_in_file(),
                         buf.get_contents(),
+                        1,
                     );
                     buf.update_contents(result);
                     undo.add_do_history(Operation::DELETE, delchar, Point { col, row });

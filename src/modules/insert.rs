@@ -1,72 +1,16 @@
+use super::edit::Undo;
 use crate::modules::history::Operation;
 use crate::modules::mode::MODE;
 use crate::modules::show::Display;
 use crate::modules::show::MoveDirection;
-use crate::modules::undo::Undo;
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::KeyCode;
 
 use super::coordinate::Point;
+use super::edit::{del, insert};
 use super::file::FileBuffer;
 
 /// insert a charactor on a point.
-pub fn insert(col: usize, row: usize, base_string: String, charactor: char) -> String {
-    // create copy string
-    let tmp = String::from(base_string);
-    let mut count = 0;
-    let mut result = String::new();
-    let mut first = true;
-
-    // move to target row
-    for content in tmp.split('\n') {
-        if first {
-            first = false;
-        } else {
-            result.push_str("\n");
-        }
-        let mut tmpstring = format!("{}", content);
-        if count == row {
-            tmpstring.insert(col as usize, charactor);
-        }
-        result.push_str(&tmpstring);
-        count += 1;
-    }
-    String::from(result)
-}
-pub fn delback(col: usize, row: usize, base_string: String) -> (String, Vec<char>) {
-    let tmp = String::from(base_string);
-    let mut count = 0;
-    let mut after = String::new();
-    let mut cr = true;
-    let mut del_char: char = 0x00 as char;
-    // move to target row
-    for content in tmp.split('\n') {
-        if cr {
-            cr = false;
-        } else {
-            after.push_str("\n");
-        }
-        let mut tmpstring = format!("{}", content);
-        if count == row {
-            if col < tmpstring.len() {
-                let mut colcount = 0;
-                for charactor in tmpstring.chars() {
-                    if colcount == col {
-                        del_char = charactor;
-                    }
-                    colcount += 1;
-                }
-                tmpstring.remove((col) as usize);
-            } else {
-                del_char = '\n' as char;
-                cr = true;
-            }
-        }
-        after.push_str(&tmpstring);
-        count += 1;
-    }
-    (String::from(after), vec![del_char])
-}
 pub fn proc_insert(
     code: KeyCode,
     display: &mut Display,
@@ -80,10 +24,12 @@ pub fn proc_insert(
         }
         KeyCode::Enter => {
             buf.update_contents(insert(
-                display.get_cursor_coordinate_in_file().col,
-                display.get_cursor_coordinate_in_file().row,
+                Point {
+                    col: display.get_cursor_coordinate_in_file().col,
+                    row: display.get_cursor_coordinate_in_file().row,
+                },
                 buf.get_contents(),
-                '\n',
+                &vec!['\n'],
             ));
             undo.add_do_history(
                 Operation::ADD,
@@ -100,10 +46,12 @@ pub fn proc_insert(
         }
         KeyCode::Char(c) => {
             buf.update_contents(insert(
-                display.get_cursor_coordinate_in_file().col,
-                display.get_cursor_coordinate_in_file().row,
+                Point {
+                    col: display.get_cursor_coordinate_in_file().col,
+                    row: display.get_cursor_coordinate_in_file().row,
+                },
                 buf.get_contents(),
-                c,
+                &vec![c],
             ));
             undo.add_do_history(
                 Operation::ADD,
@@ -128,19 +76,16 @@ pub fn proc_insert(
             } else {
                 display.move_cursor_nextpos(MoveDirection::Left, &buf);
             };
-            let (result, delchar) = delback(
-                display.get_cursor_coordinate_in_file().col,
-                display.get_cursor_coordinate_in_file().row,
+            let (result, delchar) = del(
+                display.get_cursor_coordinate_in_file(),
                 buf.get_contents(),
+                1,
             );
             buf.update_contents(result);
             undo.add_do_history(
                 Operation::DELETE,
                 delchar,
-                Point {
-                    col: tmp_pos.col,
-                    row: tmp_pos.row,
-                },
+                display.get_cursor_coordinate_in_file(),
             );
             display.update_all(buf.get_contents()).unwrap();
             MODE::Insert
