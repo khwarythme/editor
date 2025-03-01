@@ -58,7 +58,7 @@ impl Display {
             if row_index > self.wsize.row - 2 + self.point_in_file.row {
                 break;
             }
-            if self.point_in_file.row > row_index {
+            if self.point_in_file.row >= row_index {
                 continue;
             } else {
                 for c in chara {
@@ -97,7 +97,7 @@ impl Display {
         if point.row <= self.wsize.row / 2 {
             self.point_in_file.row = 0;
         } else {
-            self.point_in_file.row = point.row - self.wsize.row / 2;
+            self.point_in_file.row =  point.row - (self.wsize.row / 2);
         }
         self.point.row = if point.row <= self.wsize.row / 2 {
             point.row % self.wsize.row
