@@ -1,9 +1,7 @@
 use crate::modules::coordinate::Point;
-use crate::modules::file::FileBuffer;
 use crate::modules::history::*;
 
 use std::collections::VecDeque;
-use std::vec;
 pub struct Undo {
     history: History,
     undo_history: History,
@@ -35,8 +33,17 @@ impl Yank {
             count += 1;
         }
     }
-    pub fn past(&self, row: usize, buf: VecDeque<VecDeque<char>>) -> VecDeque<VecDeque<char>> {
-        insert(Point { column: 0, row }, buf, self.yank.clone())
+    pub fn past(
+        &self,
+        row: usize,
+        buf: VecDeque<VecDeque<char>>,
+        undo: &mut Undo,
+    ) -> VecDeque<VecDeque<char>> {
+        let mut tmp = self.yank.clone();
+        tmp.push_back('\n');
+        let ret = insert(Point { column: 0, row }, buf, tmp.clone());
+        undo.add_do_history(Operation::ADD, tmp, Point { column: 0, row });
+        ret
     }
 }
 
@@ -61,6 +68,7 @@ impl Undo {
             UndoDirection::Undo => self.history.undo(),
             UndoDirection::Redo => self.history.undo(),
         };
+
         match record.get_operation() {
             Operation::ADD => {
                 let (result, _delchar) = del(record.get_pos(), buf, record.get_target().len());
@@ -109,22 +117,13 @@ pub fn insert(
         };
         let mut tmp = ret.remove(row).unwrap_or(VecDeque::new());
         let mut tmp_vec = VecDeque::new();
-        if tmp.len() + 1 >= start.column {
-            if start.column > 0 {
-                let tmp2 = tmp.split_off(start.column);
-                tmp.append(&mut c);
-                tmp_vec.push_back(tmp);
-                tmp_vec.push_back(tmp2);
-                for t in 0..tmp_vec.len() {
-                    ret.insert(row + t, tmp_vec.pop_front().unwrap());
-                }
-            } else {
-                tmp.append(&mut c);
-                tmp_vec.push_back(VecDeque::new());
-                tmp_vec.push_back(tmp);
-                for t in 0..tmp_vec.len() {
-                    ret.insert(row + t, tmp_vec.pop_front().unwrap());
-                }
+        if tmp.len() + 1 > start.column {
+            let tmp2 = tmp.split_off(start.column);
+            tmp.append(&mut c);
+            tmp_vec.push_back(tmp);
+            tmp_vec.push_back(tmp2);
+            for t in 0..tmp_vec.len() {
+                ret.insert(row + t, tmp_vec.pop_front().unwrap());
             }
         } else {
             tmp.append(&mut c);
@@ -188,7 +187,8 @@ pub fn del(
                 del_cr = true;
             } else {
                 let limit = if tmp_point.column + length > line.len() {
-                    line.len() - tmp_point.column
+                    //line.len() - tmp_point.column
+                    length
                 } else {
                     length
                 };

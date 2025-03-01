@@ -118,9 +118,10 @@ impl Normal {
                     buf.update_contents(yank.past(
                         display.get_cursor_coordinate_in_file().row,
                         buf.get_contents(),
+                        undo,
                     ));
                     display.move_cursor_nextpos(MoveDirection::Down, buf);
-                    display.update_all(buf.get_contents());
+                    let _ = display.update_all(buf.get_contents());
                     MODE::Normal
                 }
 
