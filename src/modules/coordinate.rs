@@ -1,5 +1,5 @@
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq)]
 pub struct Point {
-    pub col: usize,
+    pub column: usize,
     pub row: usize,
 }

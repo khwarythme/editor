@@ -1,4 +1,6 @@
 use super::edit::Undo;
+use super::edit::UndoDirection;
+use super::edit::Yank;
 use super::edit::{del, insert};
 use crate::modules::coordinate::Point;
 use crate::modules::file::FileBuffer;
@@ -18,6 +20,7 @@ impl Normal {
         display: &mut Display,
         buf: &mut FileBuffer,
         undo: &mut Undo,
+        yank: &mut Yank,
     ) -> MODE {
         match code {
             KeyCode::Char(c) => match c {
@@ -51,15 +54,15 @@ impl Normal {
                     MODE::Normal
                 }
                 'h' => {
-                    display.move_cursor_nextpos(MoveDirection::Left, buf);
+                    display.move_cursor_nextpos(MoveDirection::Left, &buf);
                     MODE::Normal
                 }
                 'l' => {
-                    display.move_cursor_nextpos(MoveDirection::Right, buf);
+                    display.move_cursor_nextpos(MoveDirection::Right, &buf);
                     MODE::Normal
                 }
                 'x' => {
-                    let col = display.get_cursor_coordinate_in_file().col;
+                    let col = display.get_cursor_coordinate_in_file().column;
                     let row = display.get_cursor_coordinate_in_file().row;
                     let (result, delchar) = del(
                         display.get_cursor_coordinate_in_file(),
@@ -67,20 +70,36 @@ impl Normal {
                         1,
                     );
                     buf.update_contents(result);
-                    undo.add_do_history(Operation::DELETE, delchar, Point { col, row });
+                    undo.add_do_history(Operation::DELETE, delchar, Point { column: col, row });
                     display.update_all(buf.get_contents()).unwrap();
                     MODE::Normal
                 }
                 'u' => {
-                    let pos = undo.undo(buf);
+                    let (ret, pos) = undo.undo(buf.get_contents(), UndoDirection::Undo);
+                    buf.update_contents(ret);
                     display.update_all(buf.get_contents()).unwrap();
                     display.move_to_point(
                         buf,
                         Point {
-                            col: pos.col,
+                            column: pos.column,
                             row: pos.row,
                         },
                     );
+
+                    MODE::Normal
+                }
+                'r' => {
+                    let (ret, pos) = undo.undo(buf.get_contents(), UndoDirection::Redo);
+                    buf.update_contents(ret);
+                    display.update_all(buf.get_contents()).unwrap();
+                    display.move_to_point(
+                        buf,
+                        Point {
+                            column: pos.column,
+                            row: pos.row,
+                        },
+                    );
+
                     MODE::Normal
                 }
                 '/' => MODE::Search,
@@ -89,6 +108,19 @@ impl Normal {
                         Some(point) => display.move_to_point(buf, point),
                         None => (),
                     };
+                    MODE::Normal
+                }
+                'y' => {
+                    yank.yank(buf.get_contents(), display.get_cursor_coordinate_in_file());
+                    MODE::Normal
+                }
+                'p' => {
+                    buf.update_contents(yank.past(
+                        display.get_cursor_coordinate_in_file().row,
+                        buf.get_contents(),
+                    ));
+                    display.move_cursor_nextpos(MoveDirection::Down, buf);
+                    display.update_all(buf.get_contents());
                     MODE::Normal
                 }
 

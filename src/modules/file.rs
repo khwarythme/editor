@@ -1,15 +1,16 @@
 use crate::modules::coordinate::Point;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{BufReader, BufWriter};
+use std::io::BufWriter;
 
 use std::path::Path;
 #[derive(Debug)]
 pub struct FileBuffer {
-    contents: String,
+    contents: VecDeque<VecDeque<char>>,
     is_read_only: bool,
     path: String,
-    search_result: Vec<Point>,
+    search_result: VecDeque<Point>,
     search_result_index: u16,
 }
 
@@ -35,21 +36,30 @@ impl FileBuffer {
         };
         let mut buf = Vec::new();
         match f.read_to_end(&mut buf) {
-            Ok(_) => Ok(FileBuffer {
-                contents: String::from_utf8(buf).unwrap_or(String::from("")),
-                is_read_only: false,
-                path: String::from(path.to_str().unwrap_or("")),
-                search_result: vec![],
-                search_result_index: 0,
-            }),
+            Ok(_) => {
+                let mut chars: VecDeque<VecDeque<char>> = VecDeque::new();
+                let buf_string = String::from_utf8(buf).unwrap_or(String::from(""));
+                for line in buf_string.lines() {
+                    let line_char: VecDeque<char> = line.chars().into_iter().collect();
+                    chars.push_back(line_char);
+                }
+
+                Ok(FileBuffer {
+                    contents: chars,
+                    is_read_only: false,
+                    path: String::from(path.to_str().unwrap_or("")),
+                    search_result: VecDeque::new(),
+                    search_result_index: 0,
+                })
+            }
             Err(e) => Err(e.to_string()),
         }
     }
-    pub fn get_contents(&self) -> String {
-        String::from(self.contents.as_str())
+    pub fn get_contents(&self) -> VecDeque<VecDeque<char>> {
+        self.contents.clone()
     }
-    pub fn update_contents(&mut self, new_contents: String) {
-        self.contents = String::from(new_contents);
+    pub fn update_contents(&mut self, new_contents: VecDeque<VecDeque<char>>) {
+        self.contents = new_contents.clone();
     }
     pub fn save_file(&mut self) -> Result<(), String> {
         let file = match File::create(Path::new(self.path.as_str())) {
@@ -58,7 +68,14 @@ impl FileBuffer {
         };
 
         let mut writer = BufWriter::new(file);
-        let _result = match writer.write_all(self.contents.as_bytes()) {
+        let mut s: String = String::new();
+        for line in self.contents.clone() {
+            let mut tmpstr: String = line.into_iter().collect();
+            tmpstr.push('\n');
+            s.push_str(&tmpstr);
+        }
+
+        let _result = match writer.write_all(s.as_bytes()) {
             Ok(_) => "Ok",
             Err(e) => return Err(e.to_string()),
         };
@@ -75,21 +92,18 @@ impl FileBuffer {
         self.is_read_only = dst;
     }
     pub fn get_col_length(&self, row: usize) -> usize {
-        let r: Vec<char> = self
+        let r: VecDeque<char> = self
             .contents
-            .lines()
+            .clone()
+            .into_iter()
             .nth(row)
-            .unwrap_or("")
-            .to_string()
-            .chars()
-            .collect();
+            .unwrap_or(VecDeque::new());
         r.len()
     }
     pub fn get_row_length(&self) -> u16 {
-        let v: Vec<&str> = self.contents.split('\n').collect();
-        v.len() as u16
+        self.contents.len() as u16
     }
-    pub fn search_result_register(&mut self, result: Vec<Point>) {
+    pub fn search_result_register(&mut self, result: VecDeque<Point>) {
         self.search_result_index = 0;
         self.search_result = result;
     }
@@ -101,7 +115,7 @@ impl FileBuffer {
                 self.search_result_index = 0;
             }
             Some(Point {
-                col: self.search_result[self.search_result_index as usize].col,
+                column: self.search_result[self.search_result_index as usize].column,
                 row: self.search_result[self.search_result_index as usize].row,
             })
         } else {
@@ -110,16 +124,23 @@ impl FileBuffer {
     }
 }
 #[cfg(test)]
-mod FileTest {
+mod file_test {
     use super::FileBuffer;
+    use std::collections::VecDeque;
 
     #[test]
     fn test_read_write_contents() {
         let p = std::path::Path::new("test.txt");
         let mut buf = FileBuffer::new(&p).unwrap();
         assert_eq!(std::fs::exists(p).unwrap(), true);
-        buf.update_contents(String::from("new string"));
-        assert_eq!(buf.get_contents(), String::from("new string"));
+        let target: VecDeque<VecDeque<char>> = VecDeque::from([VecDeque::from([
+            'n', 'e', 'w', ' ', 's', 't', 'r', 'i', 'n', 'g',
+        ])]);
+        buf.update_contents(target);
+        let expected: VecDeque<VecDeque<char>> = VecDeque::from([VecDeque::from([
+            'n', 'e', 'w', ' ', 's', 't', 'r', 'i', 'n', 'g',
+        ])]);
+        assert_eq!(buf.get_contents(), expected);
     }
     #[test]
     fn test_get_set_readonly() {
@@ -136,21 +157,34 @@ mod FileTest {
         let p = std::path::Path::new("test.txt");
         let mut buf = FileBuffer::new(&p).unwrap();
         assert_eq!(std::fs::exists(p).unwrap(), true);
-        buf.update_contents(String::from("new string2"));
-        assert_eq!(buf.get_contents(), String::from("new string2"));
+        let src = VecDeque::from([VecDeque::from([
+            'n', 'e', 'w', ' ', 's', 't', 'r', 'i', 'n', 'g', '2',
+        ])]);
+        buf.update_contents(src);
+        let expected = VecDeque::from([VecDeque::from([
+            'n', 'e', 'w', ' ', 's', 't', 'r', 'i', 'n', 'g', '2',
+        ])]);
+        assert_eq!(buf.get_contents(), expected);
         assert_eq!(buf.save_file(), Ok(()));
         let buf2 = FileBuffer::new(&p).unwrap();
-        assert_eq!(buf2.get_contents(), String::from("new string2"));
+        assert_eq!(buf2.get_contents(), expected);
     }
     #[test]
     fn test_get_length() {
         let p = std::path::Path::new("test.txt");
         let mut buf = FileBuffer::new(&p).unwrap();
         assert_eq!(std::fs::exists(p).unwrap(), true);
-        buf.update_contents(String::from("1234567890\n2234567890\n3234567890\n"));
+        let src = VecDeque::from([
+            VecDeque::from(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']),
+            VecDeque::from(['2', '2', '3', '4', '5', '6', '7', '8', '9', '0']),
+            VecDeque::from([]),
+            VecDeque::from(['3', '2', '3', '4', '5', '6', '7', '8', '9', '0']),
+        ]);
+        buf.update_contents(src);
         assert_eq!(buf.get_row_length(), 4);
         assert_eq!(buf.get_col_length(0), 10);
         assert_eq!(buf.get_col_length(1), 10);
-        assert_eq!(buf.get_col_length(2), 10);
+        assert_eq!(buf.get_col_length(2), 0);
+        assert_eq!(buf.get_col_length(3), 10);
     }
 }

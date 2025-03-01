@@ -2,6 +2,8 @@ use crate::modules::coordinate::Point;
 use crate::modules::file::FileBuffer;
 use crate::modules::mode::MODE;
 use crossterm::event::KeyCode;
+
+use std::collections::VecDeque;
 pub struct Search {
     ptn: String,
 }
@@ -24,14 +26,14 @@ impl Search {
         }
     }
 }
-pub fn search_string(buf: String, ptn: &str) -> Vec<Point> {
-    let mut ret: Vec<Point> = vec![];
+pub fn search_string(buf: VecDeque<VecDeque<char>>, ptn: &str) -> VecDeque<Point> {
+    let mut ret: VecDeque<Point> = VecDeque::new();
     let matchsize = ptn.len();
     let mut row = 0;
-    for line in buf.split('\n') {
+    for line in buf {
         let mut matchindex = 0;
         let mut col = 0;
-        for charactor in line.chars() {
+        for charactor in line {
             let p = match ptn.chars().nth(matchindex) {
                 Some(a) => a,
                 None => 0x00 as char,
@@ -45,7 +47,7 @@ pub fn search_string(buf: String, ptn: &str) -> Vec<Point> {
             } else {
                 matchindex += 1;
                 if matchindex == matchsize {
-                    ret.push(Point { col, row });
+                    ret.push_back(Point { column: col, row });
                 }
             }
         }

@@ -2,6 +2,7 @@ mod modules;
 use modules::command;
 use modules::coordinate::Point;
 use modules::edit::Undo;
+use modules::edit::Yank;
 use modules::file::FileBuffer;
 use modules::insert::proc_insert;
 use modules::mode::{State, MODE};
@@ -23,7 +24,7 @@ fn main() {
     let mut buf = FileBuffer::new(path).expect("cannot open file");
     let (col, row) = size().unwrap();
     let mut display = Display::new(Point {
-        col: col as usize,
+        column: col as usize,
         row: row as usize,
     });
     display.init_window();
@@ -40,13 +41,14 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
     let mut command: command::Command = command::Command::new();
     display.update_all(buf.get_contents()).unwrap();
     let mut undo = Undo::new();
+    let mut yank = Yank::new();
     let mut sch = Search::new();
 
     loop {
         let (size_column, size_row) = size().unwrap();
         if is_required_update || column_prev != size_column || row_prev != size_row {
             display.update_wsize(Point {
-                col: size_column as usize,
+                column: size_column as usize,
                 row: size_row as usize,
             });
             row_prev = size_row;
@@ -64,12 +66,8 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
         let mode = state.check_mode();
 
         let new_mode = match mode {
-            MODE::Normal => Normal::proc_normal(code, display, buf, &mut undo),
-            MODE::Insert => {
-                let ret = proc_insert(code, display, buf, &mut undo);
-                display.update_all(buf.get_contents()).unwrap();
-                ret
-            }
+            MODE::Normal => Normal::proc_normal(code, display, buf, &mut undo, &mut yank),
+            MODE::Insert => proc_insert(code, display, buf, &mut undo),
             MODE::Command => command.proc_command(code, buf),
             MODE::Visual => MODE::Normal,
             MODE::Save => {
@@ -90,6 +88,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
         if new_mode == MODE::Quit {
             break;
         }
+        let _ = display.update_all(buf.get_contents());
         state.change_mode(new_mode);
     }
 }

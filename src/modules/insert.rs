@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use super::edit::Undo;
 use crate::modules::history::Operation;
 use crate::modules::mode::MODE;
@@ -25,17 +27,17 @@ pub fn proc_insert(
         KeyCode::Enter => {
             buf.update_contents(insert(
                 Point {
-                    col: display.get_cursor_coordinate_in_file().col,
+                    column: display.get_cursor_coordinate_in_file().column,
                     row: display.get_cursor_coordinate_in_file().row,
                 },
                 buf.get_contents(),
-                &vec!['\n'],
+                VecDeque::from(['\n']),
             ));
             undo.add_do_history(
                 Operation::ADD,
-                vec!['\n' as char],
+                VecDeque::from(['\n']),
                 Point {
-                    col: display.get_cursor_coordinate_in_file().col,
+                    column: display.get_cursor_coordinate_in_file().column,
                     row: display.get_cursor_coordinate_in_file().row,
                 },
             );
@@ -47,17 +49,17 @@ pub fn proc_insert(
         KeyCode::Char(c) => {
             buf.update_contents(insert(
                 Point {
-                    col: display.get_cursor_coordinate_in_file().col,
+                    column: display.get_cursor_coordinate_in_file().column,
                     row: display.get_cursor_coordinate_in_file().row,
                 },
                 buf.get_contents(),
-                &vec![c],
+                VecDeque::from([c]),
             ));
             undo.add_do_history(
                 Operation::ADD,
-                vec![c as char],
+                VecDeque::from([c]),
                 Point {
-                    col: display.get_cursor_coordinate_in_file().col,
+                    column: display.get_cursor_coordinate_in_file().column,
                     row: display.get_cursor_coordinate_in_file().row,
                 },
             );
@@ -66,28 +68,40 @@ pub fn proc_insert(
             MODE::Insert
         }
         KeyCode::Backspace => {
-            let tmp_pos = display.get_cursor_coordinate_in_file();
-            if display.get_cursor_coordinate_in_file().col <= 0 {
+            let _tmp_pos = display.get_cursor_coordinate_in_file();
+            if display.get_cursor_coordinate_in_file().column <= 0 {
                 if display.get_cursor_coordinate().row > 0 {
                     display.move_cursor_nextpos(MoveDirection::Up, &buf);
                     display.move_cursor_nextpos(MoveDirection::Tail, &buf);
+                    let (result, delchar) = del(
+                        display.get_cursor_coordinate_in_file(),
+                        buf.get_contents(),
+                        1,
+                    );
+                    buf.update_contents(result);
+                    undo.add_do_history(
+                        Operation::DELETE,
+                        delchar,
+                        display.get_cursor_coordinate_in_file(),
+                    );
+                    display.update_all(buf.get_contents()).unwrap();
                 } else {
                 };
             } else {
                 display.move_cursor_nextpos(MoveDirection::Left, &buf);
+                let (result, delchar) = del(
+                    display.get_cursor_coordinate_in_file(),
+                    buf.get_contents(),
+                    1,
+                );
+                buf.update_contents(result);
+                undo.add_do_history(
+                    Operation::DELETE,
+                    delchar,
+                    display.get_cursor_coordinate_in_file(),
+                );
+                display.update_all(buf.get_contents()).unwrap();
             };
-            let (result, delchar) = del(
-                display.get_cursor_coordinate_in_file(),
-                buf.get_contents(),
-                1,
-            );
-            buf.update_contents(result);
-            undo.add_do_history(
-                Operation::DELETE,
-                delchar,
-                display.get_cursor_coordinate_in_file(),
-            );
-            display.update_all(buf.get_contents()).unwrap();
             MODE::Insert
         }
         _ => MODE::Insert,

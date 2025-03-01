@@ -4,7 +4,7 @@ use super::coordinate::Point;
 #[derive(Clone)]
 pub struct HistoryRecord {
     ope: Operation,
-    target: Vec<char>,
+    target: VecDeque<char>,
     position: Point,
 }
 #[derive(Clone, Copy)]
@@ -20,7 +20,7 @@ pub struct History {
 }
 
 impl HistoryRecord {
-    fn new(operation: Operation, input: Vec<char>, pos: Point) -> HistoryRecord {
+    fn new(operation: Operation, input: VecDeque<char>, pos: Point) -> HistoryRecord {
         HistoryRecord {
             ope: operation,
             target: input,
@@ -33,8 +33,8 @@ impl HistoryRecord {
     pub fn get_pos(&self) -> Point {
         self.position
     }
-    pub fn get_target(&self) -> &Vec<char> {
-        &self.target
+    pub fn get_target(&self) -> VecDeque<char> {
+        self.target.clone()
     }
 }
 impl History {
@@ -44,7 +44,7 @@ impl History {
             index: 0,
         }
     }
-    pub fn add(&mut self, ope: Operation, target: Vec<char>, pos: Point) {
+    pub fn add(&mut self, ope: Operation, target: VecDeque<char>, pos: Point) {
         if self.history.len() >= 999 {
             self.history.pop_front();
             self.index -= 1;
@@ -55,7 +55,11 @@ impl History {
     pub fn undo(&mut self) -> HistoryRecord {
         match self.history.pop_back() {
             Some(t) => t,
-            None => HistoryRecord::new(Operation::HEAD, Vec::new(), Point { col: 0, row: 0 }),
+            None => HistoryRecord::new(
+                Operation::HEAD,
+                VecDeque::new(),
+                Point { column: 0, row: 0 },
+            ),
         }
     }
 }
