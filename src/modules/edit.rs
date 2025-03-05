@@ -2,6 +2,7 @@ use crate::modules::coordinate::Point;
 use crate::modules::history::*;
 
 use std::collections::VecDeque;
+
 pub struct Undo {
     history: History,
     undo_history: History,
@@ -66,13 +67,17 @@ impl Undo {
     ) -> (VecDeque<VecDeque<char>>, Point) {
         let record = match direction {
             UndoDirection::Undo => self.history.undo(),
-            UndoDirection::Redo => self.history.undo(),
+            UndoDirection::Redo => self.undo_history.undo(),
+        };
+        let history = match direction {
+            UndoDirection::Undo => &mut self.undo_history,
+            UndoDirection::Redo => &mut self.history,
         };
 
         match record.get_operation() {
             Operation::ADD => {
                 let (result, _delchar) = del(record.get_pos(), buf, record.get_target().len());
-                self.undo_history.add(
+                history.add(
                     Operation::DELETE,
                     record.get_target().clone(),
                     record.get_pos(),
@@ -81,7 +86,7 @@ impl Undo {
             }
             Operation::DELETE => {
                 let result = insert(record.get_pos(), buf, record.get_target());
-                self.undo_history.add(
+                history.add(
                     Operation::ADD,
                     record.get_target().clone(),
                     record.get_pos(),
@@ -135,12 +140,6 @@ pub fn insert(
         }
         return ret;
     }
-    if base_string.len() < start.row {
-        let mut ret = base_string.clone();
-
-        ret.push_back(charactor.clone());
-        return ret;
-    }
     // move to target row
     let mut col_count = 0;
     let mut tmp_line = VecDeque::from([]);
@@ -150,16 +149,23 @@ pub fn insert(
         .nth(start.row)
         .unwrap_or(VecDeque::from([]))
         .clone();
-
-    for chara in src_line {
-        if col_count == start.column {
-            for inserted_char in charactor.clone() {
-                tmp_line.push_back(inserted_char);
-            }
+    if src_line.len() <= start.column {
+        tmp_line = src_line.clone();
+        for c in charactor.clone() {
+            tmp_line.push_back(c);
         }
-        tmp_line.push_back(chara);
-        col_count += 1;
+    } else {
+        for chara in src_line {
+            if col_count == start.column {
+                for inserted_char in charactor.clone() {
+                    tmp_line.push_back(inserted_char);
+                }
+            }
+            tmp_line.push_back(chara);
+            col_count += 1;
+        }
     }
+
     result.remove(start.row);
     result.insert(start.row, tmp_line);
     result
@@ -187,13 +193,18 @@ pub fn del(
                 del_cr = true;
             } else {
                 let limit = if tmp_point.column + length > line.len() {
-                    //line.len() - tmp_point.column
-                    length
+                    line.len() - tmp_point.column + 1
                 } else {
                     length
                 };
-                for i in 0..limit {
-                    ret_chars.push_back(line.remove(tmp_point.column + i).unwrap_or('\0'));
+                for _ in 0..limit {
+                    let del_char = line.remove(tmp_point.column).unwrap_or('\0');
+                    if del_char == '\0' {
+                        ret_chars.push_back('\n');
+                        del_cr = true;
+                    } else {
+                        ret_chars.push_back(del_char);
+                    }
                 }
             }
             ret_string.push_back(line);
@@ -430,6 +441,30 @@ mod del_test {
         assert_ne!(dist, expected3);
         assert_eq!(c, VecDeque::from(['\n']));
         assert_eq!(dist, expected4);
+    }
+    #[test]
+    fn del_all() {
+        let src: VecDeque<VecDeque<char>> = VecDeque::from([
+            "data0".chars().into_iter().collect(),
+            "data1".chars().into_iter().collect(),
+            "data2".chars().into_iter().collect(),
+            "data3".chars().into_iter().collect(),
+            "data4".chars().into_iter().collect(),
+        ]);
+        let expected1: VecDeque<VecDeque<char>> = VecDeque::from([VecDeque::new()]);
+        let (dist, c) = del(Point { column: 0, row: 0 }, src.clone(), 6);
+        assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '0', '\n']));
+
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '1', '\n']));
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '2', '\n']));
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '3', '\n']));
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '4', '\n']));
+        assert_ne!(src, dist);
+        assert_eq!(dist, expected1);
     }
 }
 
