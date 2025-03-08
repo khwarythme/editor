@@ -4,6 +4,7 @@ use crossterm::cursor::MoveTo;
 use crossterm::cursor::{self, SetCursorStyle};
 use crossterm::queue;
 use crossterm::style::Print;
+use crossterm::style::*;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
@@ -13,6 +14,7 @@ use std::collections::VecDeque;
 use std::io::prelude::*;
 use std::io::BufWriter;
 use std::io::{stdout, Stdout};
+const COLUMN_LEFT_LIMIT: u16 = 5;
 
 pub struct Display {
     buffer: BufWriter<Stdout>,
@@ -42,7 +44,10 @@ impl Display {
         let _ = queue!(self.out, Print(printstring));
         let _ = queue!(
             self.out,
-            MoveTo(self.point.column as u16, self.point.row as u16)
+            MoveTo(
+                self.point.column as u16 + COLUMN_LEFT_LIMIT,
+                self.point.row as u16
+            )
         );
     }
     pub fn update_all(&mut self, content: VecDeque<VecDeque<char>>) -> Result<(), String> {
@@ -52,30 +57,45 @@ impl Display {
             .unwrap_or_else(|e| self.close_terminal(e.to_string()));
         queue!(self.out, MoveTo(0, 0))
             .unwrap_or_else(|_| self.close_terminal("[E101] failed to move cursor".to_string()));
+        if tmp_content.len() < 1 {
+            let linno = format!("{:4} \r\n", row_index + 1);
+            let _ = queue!(self.out, Print(linno));
+            let _ = self.out.flush();
+        }
 
         for chara in tmp_content {
             row_index += 1;
-            if row_index > self.wsize.row - 2 + self.point_in_file.row {
+            if row_index > self.wsize.row - 1 + self.point_in_file.row {
                 break;
             }
             if self.point_in_file.row >= row_index {
                 continue;
             } else {
+                let linno = format!("{:4} ", row_index);
+                let _ = queue!(self.out, Print(linno));
+                let mut colcount = 0;
                 for c in chara {
-                    let _ = queue!(self.out, Print(c));
+                    if colcount >= self.wsize.column {
+                    } else {
+                        let _ = queue!(self.out, Print(c));
+                    }
+                    colcount += 1;
                 }
                 let _ = queue!(self.out, Print("\r\n"));
             }
         }
-        if (row_index - self.point_in_file.row) < self.wsize.row - 2 {
-            while row_index - self.point_in_file.row < self.wsize.row - 2 {
+        if (row_index - self.point_in_file.row) < self.wsize.row - 1 {
+            while row_index - self.point_in_file.row < self.wsize.row - 1 {
                 let _ = queue!(self.out, Print("~\r\n"));
                 row_index += 1;
             }
         }
         let _ = queue!(
             self.out,
-            MoveTo(self.point.column as u16, self.point.row as u16)
+            MoveTo(
+                self.point.column as u16 + COLUMN_LEFT_LIMIT,
+                self.point.row as u16
+            )
         );
         self.out.flush().unwrap();
         Ok(())
@@ -97,7 +117,7 @@ impl Display {
         if point.row <= self.wsize.row / 2 {
             self.point_in_file.row = 0;
         } else {
-            self.point_in_file.row =  point.row - (self.wsize.row / 2);
+            self.point_in_file.row = point.row - (self.wsize.row / 2);
         }
         self.point.row = if point.row <= self.wsize.row / 2 {
             point.row % self.wsize.row
@@ -108,12 +128,19 @@ impl Display {
         self.update_all(buf.get_contents()).unwrap();
         let _ = queue!(
             self.out,
-            MoveTo(self.point.column as u16, self.point.row as u16)
+            MoveTo(
+                self.point.column as u16 + COLUMN_LEFT_LIMIT,
+                self.point.row as u16
+            )
         );
         let _ = self.out.flush();
     }
     pub fn move_cursor_to_point(&mut self, point: Point) {
-        queue!(self.out, MoveTo(point.column as u16, point.row as u16)).unwrap();
+        queue!(
+            self.out,
+            MoveTo(point.column as u16 + COLUMN_LEFT_LIMIT, point.row as u16)
+        )
+        .unwrap();
     }
     pub fn move_cursor_nextpos(&mut self, direction: MoveDirection, buf: &FileBuffer) {
         match direction {
@@ -216,13 +243,28 @@ impl Display {
         disable_raw_mode().expect("");
         self.out.flush().unwrap();
     }
-    pub fn update_info_line(&mut self, msg: &String) {
+    pub fn update_info_line(&mut self, msg: [&str; 10]) {
         let cursor_pos = self.point;
+        let sep10 = self.wsize.column / 10;
+        let _ = queue!(self.out, SetBackgroundColor(Color::Green));
+        let _ = queue!(self.out, SetForegroundColor(Color::Black));
         self.move_cursor_to_point(Point {
             column: 0,
-            row: self.wsize.row,
+            row: self.wsize.row + 1,
         });
-        println!("{}", msg);
+        let mut tmp = 0;
+
+        for i in msg {
+            print!("{}", i);
+            self.move_cursor_to_point(Point {
+                column: tmp + sep10,
+                row: self.wsize.row + 1,
+            });
+            tmp += sep10;
+        }
+        let _ = queue!(self.out, ResetColor);
+
         self.move_cursor_to_point(cursor_pos);
+        let _ = self.out.flush();
     }
 }

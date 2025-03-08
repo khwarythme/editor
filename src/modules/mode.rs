@@ -8,6 +8,7 @@ pub enum MODE {
     Save,
     SaveAndQuit,
     Search,
+    Jump(i32),
 }
 
 #[derive(Debug)]

@@ -61,6 +61,9 @@ impl FileBuffer {
     pub fn update_contents(&mut self, new_contents: VecDeque<VecDeque<char>>) {
         self.contents = new_contents.clone();
     }
+    pub fn get_path(&self) -> String {
+        self.path.clone()
+    }
     pub fn save_file(&mut self) -> Result<(), String> {
         let file = match File::create(Path::new(self.path.as_str())) {
             Ok(some) => some,

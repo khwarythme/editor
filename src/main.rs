@@ -45,6 +45,30 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
     let mut sch = Search::new();
 
     loop {
+        let rowsize = buf.get_contents().len();
+        let percent = if rowsize > 0 {
+            ((display.get_cursor_coordinate_in_file().row + 1) * 100) / rowsize
+        } else {
+            100
+        };
+        let cmd_buf = command.get_command_buf();
+        display.update_info_line([
+            buf.get_path()
+                .clone()
+                .split('/')
+                .into_iter()
+                .next_back()
+                .unwrap_or(""),
+            "",
+            "",
+            &cmd_buf,
+            "",
+            "",
+            "",
+            &format!("{}", percent),
+            &format!("{}", display.get_cursor_coordinate_in_file().column + 1),
+            "",
+        ]);
         let (size_column, size_row) = size().unwrap();
         if is_required_update || column_prev != size_column || row_prev != size_row {
             display.update_wsize(Point {
@@ -65,7 +89,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
         let code = input.code;
         let mode = state.check_mode();
 
-        let new_mode = match mode {
+        let mut new_mode = match mode {
             MODE::Normal => Normal::proc_normal(code, display, buf, &mut undo, &mut yank),
             MODE::Insert => proc_insert(code, display, buf, &mut undo),
             MODE::Command => command.proc_command(code, buf),
@@ -81,13 +105,35 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
             MODE::Search => sch.proc_search(code, buf),
             m => m,
         };
-        if new_mode == MODE::SaveAndQuit {
-            buf.save_file().unwrap();
-            break;
-        }
-        if new_mode == MODE::Quit {
-            break;
-        }
+        match new_mode {
+            MODE::Save => {
+                let _ = buf.save_file();
+                new_mode = MODE::Normal;
+            }
+            MODE::SaveAndQuit => {
+                let _ = buf.save_file();
+                break;
+            }
+            MODE::Quit => break,
+            MODE::Jump(mut x) => {
+                if x > buf.get_contents().len() as i32 {
+                    x = buf.get_contents().len() as i32;
+                } else if x < 1 {
+                    x = 1;
+                }
+                display.move_to_point(
+                    buf,
+                    Point {
+                        row: (x - 1) as usize,
+                        column: display.get_cursor_coordinate_in_file().column,
+                    },
+                );
+                let _ = display.update_all(buf.get_contents());
+
+                new_mode = MODE::Normal;
+            }
+            _ => {}
+        };
         let _ = display.update_all(buf.get_contents());
         state.change_mode(new_mode);
     }

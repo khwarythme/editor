@@ -18,26 +18,28 @@ impl Command {
                 MODE::Command
             }
             KeyCode::Enter => self.exec_command(),
+            KeyCode::Backspace => {
+                let _ = self.inputs.pop();
+                MODE::Command
+            }
             KeyCode::Esc => MODE::Normal,
             _ => MODE::Command,
         }
     }
+    pub fn get_command_buf(&self) -> String {
+        let ret: String = self.inputs.iter().collect();
+        ret
+    }
     pub fn exec_command(&mut self) -> MODE {
-        let mut flg: u16 = 0x00;
-
-        for cmd in &(self.inputs) {
-            match cmd {
-                'q' => flg |= 0x01,
-                'w' => flg |= 0x02,
-                _ => flg |= !0x03,
-            }
-        }
-        self.inputs.clear();
-        match flg {
-            0x01 => MODE::Quit,
-            0x02 => MODE::Save,
-            0x03 => MODE::SaveAndQuit,
+        let inputs: String = self.inputs.iter().collect();
+        let ret = match inputs {
+            x if x.eq("wq") => MODE::SaveAndQuit,
+            x if x.eq("w") => MODE::Save,
+            x if x.eq("q") => MODE::Quit,
+            x if x.parse::<i32>().is_ok() => MODE::Jump(x.parse::<i32>().unwrap()),
             _ => MODE::Normal,
-        }
+        };
+        self.inputs.clear();
+        ret
     }
 }
