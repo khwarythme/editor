@@ -1,6 +1,6 @@
 use crate::modules::coordinate::Point;
 use std::collections::VecDeque;
-use std::fs::File;
+use std::fs::{canonicalize, File};
 use std::io::prelude::*;
 use std::io::BufWriter;
 
@@ -47,13 +47,24 @@ impl FileBuffer {
                 Ok(FileBuffer {
                     contents: chars,
                     is_read_only: false,
-                    path: String::from(path.to_str().unwrap_or("")),
+                    path: canonicalize(path)
+                        .unwrap()
+                        .to_str()
+                        .unwrap_or("")
+                        .to_string(),
                     search_result: VecDeque::new(),
                     search_result_index: 0,
                 })
             }
             Err(e) => Err(e.to_string()),
         }
+    }
+    pub fn change_file(&mut self, new_buf: FileBuffer) {
+        self.contents = new_buf.get_contents();
+        self.is_read_only = new_buf.get_read_only();
+        self.path = new_buf.get_path();
+        self.search_result = new_buf.search_result;
+        self.search_result_index = new_buf.search_result_index;
     }
     pub fn get_contents(&self) -> VecDeque<VecDeque<char>> {
         self.contents.clone()

@@ -8,3 +8,4 @@ pub mod mode;
 pub mod normal;
 pub mod search;
 pub mod show;
+pub mod lsp;

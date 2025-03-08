@@ -5,6 +5,7 @@ use modules::edit::Undo;
 use modules::edit::Yank;
 use modules::file::FileBuffer;
 use modules::insert::proc_insert;
+use modules::lsp::client;
 use modules::mode::{State, MODE};
 use modules::normal::Normal;
 use modules::search::Search;
@@ -15,6 +16,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifier
 use crossterm::terminal::size;
 
 use std::env;
+use std::ffi::OsStr;
 use std::path::Path;
 
 fn main() {
@@ -29,8 +31,27 @@ fn main() {
     });
     display.init_window();
     display.set_cursor_type(SetCursorStyle::SteadyBlock);
+
+    let client_name = detect_file_type(path);
+    if client_name != "" {
+        let mut client = client::new(client_name);
+        client.run(&buf);
+    }
+
     handle(&mut display, &mut buf);
     display.close_terminal("".to_string());
+}
+fn detect_file_type(path: &Path) -> String {
+    match path
+        .extension()
+        .unwrap_or(OsStr::new(""))
+        .to_str()
+        .unwrap_or("")
+    {
+        //"rs" => "rust-analyzer".to_string(),
+        //"c" => "clangd".to_string(),
+        _ => "".to_string(),
+    }
 }
 
 fn handle(display: &mut Display, buf: &mut FileBuffer) {
@@ -65,8 +86,12 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
             "",
             "",
             "",
-            &format!("{}", percent),
-            &format!("{}", display.get_cursor_coordinate_in_file().column + 1),
+            &format!("{}%", percent),
+            &format!(
+                "{}:{}",
+                display.get_cursor_coordinate_in_file().row + 1,
+                display.get_cursor_coordinate_in_file().column + 1
+            ),
             "",
         ]);
         let (size_column, size_row) = size().unwrap();
