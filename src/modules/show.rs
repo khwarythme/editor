@@ -14,6 +14,7 @@ use std::collections::VecDeque;
 use std::io::prelude::*;
 use std::io::BufWriter;
 use std::io::{stdout, Stdout};
+use unicode_width::UnicodeWidthStr;
 
 const COLUMN_LEFT_LIMIT: u16 = 5;
 

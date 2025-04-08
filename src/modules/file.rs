@@ -136,7 +136,18 @@ impl FileBuffer {
             None
         }
     }
+    pub fn get_display_length(&self, pos: Point) -> usize {
+        match(self.get_contents()[pos.row][pos.column]){
+            '\t' => 4,
+            c if c < 0xFF as char => 1,
+            _ => 2,
+        }
+    }
 }
+
+
+
+
 #[cfg(test)]
 mod file_test {
     use super::FileBuffer;

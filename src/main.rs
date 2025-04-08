@@ -35,7 +35,7 @@ fn main() {
     let client_name = detect_file_type(path);
     if client_name != "" {
         let mut client = client::new(client_name);
-        client.run(&buf);
+        let _ = client.run(&buf);
     }
 
     handle(&mut display, &mut buf);

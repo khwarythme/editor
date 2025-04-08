@@ -170,6 +170,7 @@ pub fn insert(
     result.insert(start.row, tmp_line);
     result
 }
+
 /// delete 1 or some charactor(s) from base_string
 /// point_in_file is first point to delete charactor(s).
 /// length is delete length
