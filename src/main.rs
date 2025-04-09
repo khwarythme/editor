@@ -19,28 +19,32 @@ use std::env;
 use std::ffi::OsStr;
 use std::path::Path;
 
-fn main() {
+#[tokio::main]
+pub async fn main() -> Result<(),String>{
     let args = env::args();
     let arg: Vec<String> = args.collect();
     let path = Path::new(&arg[1]);
-    let mut buf = FileBuffer::new(path).expect("cannot open file");
+    let mut buf = FileBuffer::new(path)?;
     let (col, row) = size().unwrap();
     let mut display = Display::new(Point {
         column: col as usize,
         row: row as usize,
-    });
-    display.init_window();
+    }).await;
+    display.init_window().await;
     display.set_cursor_type(SetCursorStyle::SteadyBlock);
 
     let client_name = detect_file_type(path);
     if client_name != "" {
         let mut client = client::new(client_name);
-        let _ = client.run(&buf);
+        let _ = client.run(&buf).await;
     }
 
-    handle(&mut display, &mut buf);
+    handle(&mut display, &mut buf).await;
+
     display.close_terminal("".to_string());
+    Ok(())
 }
+
 fn detect_file_type(path: &Path) -> String {
     match path
         .extension()
@@ -54,13 +58,13 @@ fn detect_file_type(path: &Path) -> String {
     }
 }
 
-fn handle(display: &mut Display, buf: &mut FileBuffer) {
+async fn handle(display: &mut Display, buf: &mut FileBuffer) {
     let mut state = State::new();
     let mut column_prev: u16 = 0;
     let mut row_prev: u16 = 0;
     let is_required_update = true;
     let mut command: command::Command = command::Command::new();
-    display.update_all(buf.get_contents()).unwrap();
+    display.update_all(buf.get_contents()).await.unwrap();
     let mut undo = Undo::new();
     let mut yank = Yank::new();
     let mut sch = Search::new();
@@ -93,13 +97,13 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
                 display.get_cursor_coordinate_in_file().column + 1
             ),
             "",
-        ]);
+        ]).await;
         let (size_column, size_row) = size().unwrap();
         if is_required_update || column_prev != size_column || row_prev != size_row {
             display.update_wsize(Point {
                 column: size_column as usize,
                 row: size_row as usize,
-            });
+            }).await;
             row_prev = size_row;
             column_prev = size_column;
         }
@@ -115,8 +119,8 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
         let mode = state.check_mode();
 
         let mut new_mode = match mode {
-            MODE::Normal => Normal::proc_normal(code, display, buf, &mut undo, &mut yank),
-            MODE::Insert => proc_insert(code, display, buf, &mut undo),
+            MODE::Normal => Normal::proc_normal(code, display, buf, &mut undo, &mut yank).await,
+            MODE::Insert => proc_insert(code, display, buf, &mut undo).await,
             MODE::Command => command.proc_command(code, buf),
             MODE::Visual => MODE::Normal,
             MODE::Save => {
@@ -127,7 +131,7 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
                 buf.save_file().unwrap();
                 MODE::Quit
             }
-            MODE::Search => sch.proc_search(code, buf),
+            MODE::Search => sch.proc_search(code, buf).await,
             m => m,
         };
         match new_mode {
@@ -152,14 +156,13 @@ fn handle(display: &mut Display, buf: &mut FileBuffer) {
                         row: (x - 1) as usize,
                         column: display.get_cursor_coordinate_in_file().column,
                     },
-                );
-                let _ = display.update_all(buf.get_contents());
-
+                ).await;
+                let _ = display.update_all(buf.get_contents()).await;
                 new_mode = MODE::Normal;
             }
             _ => {}
         };
-        let _ = display.update_all(buf.get_contents());
+        let _ = display.update_all(buf.get_contents()).await;
         state.change_mode(new_mode);
     }
 }

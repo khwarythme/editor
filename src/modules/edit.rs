@@ -2,6 +2,7 @@ use crate::modules::coordinate::Point;
 use crate::modules::history::*;
 
 use std::collections::VecDeque;
+use tokio;
 
 pub struct Undo {
     history: History,
@@ -11,7 +12,6 @@ pub enum UndoDirection {
     Undo,
     Redo,
 }
-
 pub struct Yank {
     yank: VecDeque<char>,
 }
@@ -34,7 +34,7 @@ impl Yank {
             count += 1;
         }
     }
-    pub fn past(
+    pub async fn past(
         &self,
         row: usize,
         buf: VecDeque<VecDeque<char>>,
@@ -42,7 +42,7 @@ impl Yank {
     ) -> VecDeque<VecDeque<char>> {
         let mut tmp = self.yank.clone();
         tmp.push_back('\n');
-        let ret = insert(Point { column: 0, row }, buf, tmp.clone());
+        let ret = insert(Point { column: 0, row }, buf, tmp.clone()).await;
         undo.add_do_history(Operation::ADD, tmp, Point { column: 0, row });
         ret
     }
@@ -60,7 +60,7 @@ impl Undo {
             self.history.add(op, target, pos);
         }
     }
-    pub fn undo(
+    pub async fn undo(
         &mut self,
         buf: VecDeque<VecDeque<char>>,
         direction: UndoDirection,
@@ -76,7 +76,7 @@ impl Undo {
 
         match record.get_operation() {
             Operation::ADD => {
-                let (result, _delchar) = del(record.get_pos(), buf, record.get_target().len());
+                let (result, _delchar) = del(record.get_pos(), buf, record.get_target().len()).await;
                 history.add(
                     Operation::DELETE,
                     record.get_target().clone(),
@@ -85,7 +85,7 @@ impl Undo {
                 (result, record.get_pos())
             }
             Operation::DELETE => {
-                let result = insert(record.get_pos(), buf, record.get_target());
+                let result = insert(record.get_pos(), buf, record.get_target()).await;
                 history.add(
                     Operation::ADD,
                     record.get_target().clone(),
@@ -99,7 +99,7 @@ impl Undo {
 }
 
 /// insert a charactor on a point.
-pub fn insert(
+pub async fn insert(
     start: Point,
     base_string: VecDeque<VecDeque<char>>,
     charactor: VecDeque<char>,
@@ -175,7 +175,7 @@ pub fn insert(
 /// point_in_file is first point to delete charactor(s).
 /// length is delete length
 /// it returns result string and deleted charactor(s) set as vector
-pub fn del(
+pub async fn del(
     start: Point,
     base_string: VecDeque<VecDeque<char>>,
     length: usize,
@@ -229,8 +229,8 @@ pub fn del(
 mod insert_test {
     use super::*;
 
-    #[test]
-    fn insert_first() {
+    #[tokio::test]
+    async fn insert_first() {
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
             "data0".chars().into_iter().collect(),
             "data1".chars().into_iter().collect(),
@@ -249,7 +249,7 @@ mod insert_test {
             Point { column: 0, row: 0 },
             src.clone(),
             VecDeque::from(['a']),
-        );
+        ).await;
         assert_ne!(src, dist);
         assert_eq!(dist, expected1);
         let expected2: VecDeque<VecDeque<char>> = VecDeque::from([
@@ -263,7 +263,7 @@ mod insert_test {
             Point { column: 0, row: 0 },
             dist.clone(),
             VecDeque::from(['a']),
-        );
+        ).await;
         assert_ne!(src, dist);
         assert_ne!(dist, expected1);
         assert_eq!(dist, expected2);
@@ -279,14 +279,14 @@ mod insert_test {
             Point { column: 0, row: 0 },
             dist.clone(),
             VecDeque::from(['\n']),
-        );
+        ).await;
         assert_ne!(src, dist);
         assert_ne!(dist, expected1);
         assert_ne!(dist, expected2);
         assert_eq!(dist, expected3);
     }
-    #[test]
-    fn insert_midpoint() {
+    #[tokio::test]
+    async fn insert_midpoint() {
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
             "data0".chars().into_iter().collect(),
             "data1".chars().into_iter().collect(),
@@ -306,7 +306,7 @@ mod insert_test {
             Point { column: 0, row: 1 },
             src.clone(),
             VecDeque::from(['\n']),
-        );
+        ).await;
         assert_ne!(src, dist);
         assert_eq!(dist, expected4);
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
@@ -328,7 +328,7 @@ mod insert_test {
             Point { column: 4, row: 0 },
             src.clone(),
             VecDeque::from(['\n']),
-        );
+        ).await;
         assert_ne!(src, dist);
         assert_eq!(dist, expected4);
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
@@ -350,12 +350,12 @@ mod insert_test {
             Point { column: 1, row: 0 },
             src.clone(),
             VecDeque::from(['\n']),
-        );
+        ).await;
         assert_ne!(src, dist);
         assert_eq!(dist, expected5);
     }
-    #[test]
-    fn insert_last() {
+    #[tokio::test]
+    async fn insert_last() {
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
             "data0".chars().into_iter().collect(),
             "data1".chars().into_iter().collect(),
@@ -375,7 +375,7 @@ mod insert_test {
             Point { column: 0, row: 6 },
             src.clone(),
             VecDeque::from(['\n']),
-        );
+        ).await;
         assert_ne!(src, dist);
         assert_eq!(dist, expected5);
     }
@@ -384,8 +384,8 @@ mod insert_test {
 mod del_test {
     use super::*;
 
-    #[test]
-    fn del_test() {
+    #[tokio::test]
+    async fn del_test() {
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
             "data0".chars().into_iter().collect(),
             "data1".chars().into_iter().collect(),
@@ -400,7 +400,7 @@ mod del_test {
             "data3".chars().into_iter().collect(),
             "data4".chars().into_iter().collect(),
         ]);
-        let (dist, c) = del(Point { column: 0, row: 0 }, src.clone(), 1);
+        let (dist, c) = del(Point { column: 0, row: 0 }, src.clone(), 1).await;
         assert_ne!(src, dist);
         assert_eq!(dist, expected1);
         assert_eq!(c, VecDeque::from(['d']));
@@ -411,7 +411,7 @@ mod del_test {
             "data3".chars().into_iter().collect(),
             "data4".chars().into_iter().collect(),
         ]);
-        let (dist, c) = del(Point { column: 0, row: 1 }, src.clone(), 1);
+        let (dist, c) = del(Point { column: 0, row: 1 }, src.clone(), 1).await;
         assert_ne!(src, dist);
         assert_ne!(dist, expected1);
         assert_eq!(c, VecDeque::from(['d']));
@@ -423,7 +423,7 @@ mod del_test {
             "data3".chars().into_iter().collect(),
             "data4".chars().into_iter().collect(),
         ]);
-        let (dist, c) = del(Point { column: 4, row: 0 }, src.clone(), 1);
+        let (dist, c) = del(Point { column: 4, row: 0 }, src.clone(), 1).await;
         assert_ne!(src, dist);
         assert_ne!(dist, expected1);
         assert_ne!(dist, expected2);
@@ -435,7 +435,7 @@ mod del_test {
             "data3".chars().into_iter().collect(),
             "data4".chars().into_iter().collect(),
         ]);
-        let (dist, c) = del(Point { column: 5, row: 0 }, src.clone(), 1);
+        let (dist, c) = del(Point { column: 5, row: 0 }, src.clone(), 1).await;
         assert_ne!(src, dist);
         assert_ne!(dist, expected1);
         assert_ne!(dist, expected2);
@@ -443,8 +443,8 @@ mod del_test {
         assert_eq!(c, VecDeque::from(['\n']));
         assert_eq!(dist, expected4);
     }
-    #[test]
-    fn del_all() {
+    #[tokio::test]
+    async fn del_all() {
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
             "data0".chars().into_iter().collect(),
             "data1".chars().into_iter().collect(),
@@ -453,16 +453,16 @@ mod del_test {
             "data4".chars().into_iter().collect(),
         ]);
         let expected1: VecDeque<VecDeque<char>> = VecDeque::from([VecDeque::new()]);
-        let (dist, c) = del(Point { column: 0, row: 0 }, src.clone(), 6);
+        let (dist, c) = del(Point { column: 0, row: 0 }, src.clone(), 6).await;
         assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '0', '\n']));
 
-        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6).await;
         assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '1', '\n']));
-        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6).await;
         assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '2', '\n']));
-        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6).await;
         assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '3', '\n']));
-        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6);
+        let (dist, c) = del(Point { column: 0, row: 0 }, dist.clone(), 6).await;
         assert_eq!(c, VecDeque::from(['d', 'a', 't', 'a', '4', '\n']));
         assert_ne!(src, dist);
         assert_eq!(dist, expected1);
@@ -473,8 +473,8 @@ mod del_test {
 mod undo_test {
     use super::*;
 
-    #[test]
-    fn undo_after_insert() {
+    #[tokio::test]
+    async fn undo_after_insert() {
         let mut undo = Undo::new();
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
             "data0".chars().into_iter().collect(),
@@ -494,7 +494,7 @@ mod undo_test {
             Point { column: 0, row: 0 },
             src.clone(),
             VecDeque::from(['a']),
-        );
+        ).await;
         undo.add_do_history(
             Operation::ADD,
             VecDeque::from(['a']),
@@ -502,12 +502,12 @@ mod undo_test {
         );
         assert_ne!(src, dist);
         assert_eq!(dist, expected1);
-        let (r, p) = undo.undo(dist, UndoDirection::Undo);
+        let (r, p) = undo.undo(dist, UndoDirection::Undo).await;
         assert_eq!(src, r);
         assert_eq!(Point { column: 0, row: 0 }, p);
     }
-    #[test]
-    fn undo_after_delete() {
+    #[tokio::test]
+    async fn undo_after_delete() {
         let mut undo = Undo::new();
         let src: VecDeque<VecDeque<char>> = VecDeque::from([
             "data0".chars().into_iter().collect(),
@@ -523,7 +523,7 @@ mod undo_test {
             "data3".chars().into_iter().collect(),
             "data4".chars().into_iter().collect(),
         ]);
-        let (dist, point) = del(Point { column: 0, row: 0 }, src.clone(), 1);
+        let (dist, point) = del(Point { column: 0, row: 0 }, src.clone(), 1).await;
         undo.add_do_history(
             Operation::DELETE,
             VecDeque::from(['d']),
@@ -531,7 +531,7 @@ mod undo_test {
         );
         assert_ne!(src, dist);
         assert_eq!(dist, expected1);
-        let (r, p) = undo.undo(dist, UndoDirection::Undo);
+        let (r, p) = undo.undo(dist, UndoDirection::Undo).await;
         assert_eq!(src, r);
         assert_eq!(Point { column: 0, row: 0 }, p);
     }

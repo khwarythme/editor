@@ -29,7 +29,6 @@ impl client {
         let client = LspClient::new(tx, rx);
         Self { client, process }
     }
-    #[tokio::main]
     pub async fn run(&mut self, buf: &FileBuffer) -> Result<()> {
         let mut subscriber = self.client.subscribe_to_method::<Progress>().await?;
         let (indexed_tx, indexed_rx) = oneshot::channel();

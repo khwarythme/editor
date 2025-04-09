@@ -11,14 +11,14 @@ impl Search {
     pub fn new() -> Search {
         Search { ptn: String::new() }
     }
-    pub fn proc_search(&mut self, code: KeyCode, buf: &mut FileBuffer) -> MODE {
+    pub async fn proc_search(&mut self, code: KeyCode, buf: &mut FileBuffer) -> MODE {
         match code {
             KeyCode::Char(c) => {
                 self.ptn = format!("{}{}", self.ptn, c);
                 MODE::Search
             }
             KeyCode::Enter => {
-                buf.search_result_register(search_string(buf.get_contents(), &self.ptn));
+                buf.search_result_register(search_string(buf.get_contents(), &self.ptn).await);
                 self.ptn.clear();
                 MODE::Normal
             }
@@ -26,7 +26,7 @@ impl Search {
         }
     }
 }
-pub fn search_string(buf: VecDeque<VecDeque<char>>, ptn: &str) -> VecDeque<Point> {
+pub async fn search_string(buf: VecDeque<VecDeque<char>>, ptn: &str) -> VecDeque<Point> {
     let mut ret: VecDeque<Point> = VecDeque::new();
     let matchsize = ptn.len();
     let mut row = 0;
