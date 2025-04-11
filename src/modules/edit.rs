@@ -1,5 +1,6 @@
 use crate::modules::coordinate::Point;
 use crate::modules::history::*;
+use std::sync::{Arc, Mutex};
 
 use std::collections::VecDeque;
 use tokio;
@@ -535,4 +536,9 @@ mod undo_test {
         assert_eq!(src, r);
         assert_eq!(Point { column: 0, row: 0 }, p);
     }
+}
+
+pub async fn thread_main(contents:Arc<Mutex<VecDeque<VecDeque<char>>>>) ->Result<(),String>{
+    println!("hello thread2");        
+    Ok(())
 }

@@ -8,13 +8,15 @@ use crossterm::style::*;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
+use crossterm::terminal;
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::terminal::{ScrollDown, ScrollUp};
 use std::collections::VecDeque;
 use std::io::prelude::*;
 use std::io::BufWriter;
 use std::io::{stdout, Stdout};
-use unicode_width::UnicodeWidthStr;
+use std::sync::{Arc, Mutex};
+
 
 const COLUMN_LEFT_LIMIT: u16 = 5;
 
@@ -48,6 +50,11 @@ impl Display {
         ret
 
     }
+    pub async fn thread_main(&mut self) -> !{
+
+            println!("hello thread");
+            loop{};
+    }
     fn update_line(&mut self, content: VecDeque<VecDeque<char>>, row: usize) {
         let tmp_cursor_pos = row - self.point_in_file.row;
         let _ = queue!(self.out, MoveTo(0, tmp_cursor_pos as u16));
@@ -70,9 +77,9 @@ impl Display {
         );
     }
 
-    pub async fn update_all(&mut self, content: VecDeque<VecDeque<char>>) -> Result<(), String> {
+    pub async fn update_all(&mut self, content: Arc<Mutex<VecDeque<VecDeque<char>>>>) -> Result<(), String> {
         let mut row_index = 0;
-        let tmp_content = content.clone();
+        let tmp_content = content.lock().unwrap();
         queue!(self.out, Clear(ClearType::All))
             .unwrap_or_else(|e| self.close_terminal(e.to_string()));
         queue!(self.out, MoveTo(0, 0))
@@ -83,7 +90,7 @@ impl Display {
             let _ = self.out.flush();
         }
 
-        for chara in tmp_content {
+        for chara in tmp_content.iter() {
             row_index += 1;
             if row_index > self.wsize.row - 2 + self.point_in_file.row {
                 break;
@@ -128,8 +135,8 @@ impl Display {
     pub async fn update_wsize(&mut self, size: Point) {
         self.wsize = size;
     }
-    pub async fn new(size: Point) -> Display {
-        Display {
+    pub fn new(size: Point) -> Display {
+        Self {
             buffer: BufWriter::new(stdout()),
             point: Point { column: 0, row: 0 },
             point_in_file: Point { column: 0, row: 0 },
@@ -154,7 +161,7 @@ impl Display {
         } else {
             point.column
         };
-        self.update_all(buf.get_contents()).await.unwrap();
+        //self.update_all(buf.get_contents()).await.unwrap();
         let _ = queue!(
             self.out,
             MoveTo(
@@ -252,7 +259,7 @@ impl Display {
     pub fn set_cursor_type(&mut self, style: SetCursorStyle) {
         queue!(self.out, style).unwrap();
     }
-    pub async fn init_window(&mut self) {
+    pub fn init_window(&mut self) {
         queue!(
             self.out,
             cursor::Show,
@@ -310,3 +317,16 @@ impl Display {
         let _ = self.out.flush();
     }
 }
+
+pub async fn thread_main(contents:Arc<Mutex<VecDeque<VecDeque<char>>>>) -> Result<(),String>{
+    let (wcol,wrow) = terminal::size().unwrap();
+    let mut display = Display::new(Point{column:wcol as usize, row:wrow as usize});
+    display.init_window();
+    display.update_all(contents).await;
+    loop{}
+    unreachable!();
+    display.close_terminal("".to_string());
+    
+    Ok(())
+}
+

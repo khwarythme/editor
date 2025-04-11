@@ -10,26 +10,30 @@ use modules::mode::{State, MODE};
 use modules::normal::Normal;
 use modules::search::Search;
 use modules::show::*;
+use modules::control_server;
 
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use crossterm::terminal::size;
 
 use std::env;
 use std::ffi::OsStr;
 use std::path::Path;
+use std::thread;
 
 #[tokio::main]
 pub async fn main() -> Result<(),String>{
     let args = env::args();
     let arg: Vec<String> = args.collect();
     let path = Path::new(&arg[1]);
-    let mut buf = FileBuffer::new(path)?;
+    control_server::server_main(path).await?;
+
+
+/*    let mut buf = FileBuffer::new(path)?;
     let (col, row) = size().unwrap();
     let mut display = Display::new(Point {
         column: col as usize,
         row: row as usize,
-    }).await;
+    }).await;  
     display.init_window().await;
     display.set_cursor_type(SetCursorStyle::SteadyBlock);
 
@@ -42,9 +46,10 @@ pub async fn main() -> Result<(),String>{
     handle(&mut display, &mut buf).await;
 
     display.close_terminal("".to_string());
+*/
     Ok(())
 }
-
+/*
 fn detect_file_type(path: &Path) -> String {
     match path
         .extension()
@@ -166,3 +171,4 @@ async fn handle(display: &mut Display, buf: &mut FileBuffer) {
         state.change_mode(new_mode);
     }
 }
+*/

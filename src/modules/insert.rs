@@ -43,7 +43,7 @@ pub async fn proc_insert(
             );
             display.move_cursor_nextpos(MoveDirection::Down, &buf).await;
             display.move_cursor_nextpos(MoveDirection::Head, &buf).await;
-            display.update_all(buf.get_contents()).await.unwrap();
+            //display.update_all(buf.get_contents()).await.unwrap();
             MODE::Insert
         }
         KeyCode::Char(c) => {
@@ -64,7 +64,7 @@ pub async fn proc_insert(
                 },
             );
             display.move_cursor_nextpos(MoveDirection::Right, &buf).await;
-            display.update_all(buf.get_contents()).await.unwrap();
+            //display.update_all(buf.get_contents()).await.unwrap();
             MODE::Insert
         }
         KeyCode::Backspace => {
@@ -84,7 +84,7 @@ pub async fn proc_insert(
                         delchar,
                         display.get_cursor_coordinate_in_file(),
                     );
-                    display.update_all(buf.get_contents()).await.unwrap();
+                    //display.update_all(buf.get_contents()).await.unwrap();
                 } else {
                 };
             } else {
@@ -100,7 +100,7 @@ pub async fn proc_insert(
                     delchar,
                     display.get_cursor_coordinate_in_file(),
                 );
-                display.update_all(buf.get_contents()).await.unwrap();
+                //display.update_all(buf.get_contents()).await.unwrap();
             };
             MODE::Insert
         }

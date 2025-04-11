@@ -71,13 +71,13 @@ impl Normal {
                     ).await;
                     buf.update_contents(result);
                     undo.add_do_history(Operation::DELETE, delchar, Point { column: col, row });
-                    display.update_all(buf.get_contents()).await.unwrap();
+                    //display.update_all(buf.get_contents()).await.unwrap();
                     MODE::Normal
                 }
                 'u' => {
                     let (ret, pos) = undo.undo(buf.get_contents(), UndoDirection::Undo).await;
                     buf.update_contents(ret);
-                    display.update_all(buf.get_contents()).await.unwrap();
+                    //display.update_all(buf.get_contents()).await.unwrap();
                     display.move_to_point(
                         buf,
                         Point {
@@ -91,7 +91,7 @@ impl Normal {
                 'r' => {
                     let (ret, pos) = undo.undo(buf.get_contents(), UndoDirection::Redo).await;
                     buf.update_contents(ret);
-                    display.update_all(buf.get_contents()).await.unwrap();
+                    //display.update_all(buf.get_contents()).await.unwrap();
                     display.move_to_point(
                         buf,
                         Point {
@@ -121,7 +121,7 @@ impl Normal {
                         undo,
                     ).await);
                     display.move_cursor_nextpos(MoveDirection::Down, buf).await;
-                    let _ = display.update_all(buf.get_contents());
+                    //let _ = display.update_all(buf.get_contents());
                     MODE::Normal
                 }
 
