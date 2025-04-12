@@ -1,5 +1,7 @@
 use crate::modules::coordinate::Point;
 use crate::modules::file::FileBuffer;
+use super::control_server::Operation;
+
 use crossterm::cursor::MoveTo;
 use crossterm::cursor::{self, SetCursorStyle};
 use crossterm::queue;
@@ -16,6 +18,7 @@ use std::io::prelude::*;
 use std::io::BufWriter;
 use std::io::{stdout, Stdout};
 use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{Sender,Receiver};
 
 
 const COLUMN_LEFT_LIMIT: u16 = 5;
@@ -318,15 +321,12 @@ impl Display {
     }
 }
 
-pub async fn thread_main(contents:Arc<Mutex<VecDeque<VecDeque<char>>>>) -> Result<(),String>{
+pub async fn thread_main(contents:Arc<Mutex<VecDeque<VecDeque<char>>>>,tx:Arc<Mutex<Sender<Operation>>>,rx:Receiver<Operation>) -> Result<(),String>{
     let (wcol,wrow) = terminal::size().unwrap();
     let mut display = Display::new(Point{column:wcol as usize, row:wrow as usize});
     display.init_window();
-    display.update_all(contents).await;
-    loop{}
-    unreachable!();
+    display.update_all(contents).await?;
     display.close_terminal("".to_string());
-    
     Ok(())
 }
 

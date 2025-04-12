@@ -10,3 +10,4 @@ pub mod search;
 pub mod show;
 pub mod lsp;
 pub mod control_server;
+pub mod inputs;

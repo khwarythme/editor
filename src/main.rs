@@ -1,24 +1,9 @@
 mod modules;
-use modules::command;
-use modules::coordinate::Point;
-use modules::edit::Undo;
-use modules::edit::Yank;
-use modules::file::FileBuffer;
-use modules::insert::proc_insert;
-use modules::lsp::client;
-use modules::mode::{State, MODE};
-use modules::normal::Normal;
-use modules::search::Search;
-use modules::show::*;
 use modules::control_server;
 
-use crossterm::cursor::SetCursorStyle;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-
+use tokio;
 use std::env;
-use std::ffi::OsStr;
 use std::path::Path;
-use std::thread;
 
 #[tokio::main]
 pub async fn main() -> Result<(),String>{
