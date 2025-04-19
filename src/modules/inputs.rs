@@ -1,28 +1,43 @@
 use std::io::{prelude, stdin};
-use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
-use crossterm::event::{self,Event,KeyEvent,KeyCode,KeyEventKind,KeyEventState,KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 
-use super::control_server::{Operation,OperationCode,ProcessID};
+use super::control_server::{Operation, OperationCode, ProcessID};
 
-
-pub async fn thread_main(tx: Arc<Mutex<Sender<Operation>>>,rx: Receiver<Operation>)-> Result<(), String>{
-    let key_event = match event::read(){
-        Ok(event) => {
-            match event{
+pub async fn thread_main(
+    tx: Arc<RwLock<Sender<Operation>>>,
+    rx: Receiver<Operation>,
+) -> Result<(), String> {
+    loop {
+        let key_event = match event::read().unwrap() {
+            event => match event {
                 Event::Key(c) => c,
-                _ => KeyEvent::new(KeyCode::Null, KeyModifiers::empty())
+                _ => KeyEvent::new(KeyCode::Null, KeyModifiers::empty()),
+            },
+        };
+        if key_event.kind == KeyEventKind::Release {
+            continue;
+        }
+        let tx_lock = tx.read().unwrap();
+        tx_lock
+            .send(Operation {
+                sender: ProcessID::Input,
+                code: OperationCode::Input(key_event.code),
+            })
+            .unwrap_or(());
+        let result = rx.recv_timeout(Duration::from_nanos(1));
+        if result.is_ok() {
+            if result.unwrap().code == OperationCode::Quit {
+                break;
             }
         }
-        Err(e) => return Err(e.to_string()),
-    };
-    let tx_lock = tx.lock().unwrap();
-    tx_lock.send(Operation{
-        sender:ProcessID::Input,
-        code:OperationCode::Input(key_event.code),
-
-    }).unwrap();
+    }
+    let _ = tx.read().unwrap().send(Operation {
+        sender: ProcessID::Input,
+        code: OperationCode::End,
+    });
     Ok(())
 }
-

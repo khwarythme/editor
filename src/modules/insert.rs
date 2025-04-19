@@ -1,109 +1,97 @@
 use std::collections::VecDeque;
+use std::sync::{Arc, RwLock};
 
 use super::edit::Undo;
-use crate::modules::history::Operation;
-use crate::modules::mode::MODE;
-use crate::modules::show::Display;
+use crate::modules::history::EditOperation;
+
 use crate::modules::show::MoveDirection;
-use crossterm::cursor::SetCursorStyle;
-use crossterm::event::KeyCode;
+use super::control_server::OperationCode;
 
 use super::coordinate::Point;
-use super::edit::{del, insert};
-use super::file::FileBuffer;
 
 /// insert a charactor on a point.
 pub async fn proc_insert(
-    code: KeyCode,
-    display: &mut Display,
-    buf: &mut FileBuffer,
+    code: OperationCode,
+    buf: Arc<RwLock<VecDeque<VecDeque<char>>>>,
     undo: &mut Undo,
-) -> MODE {
+) -> OperationCode {
     match code {
-        KeyCode::Esc => {
-            display.set_cursor_type(SetCursorStyle::SteadyBlock);
-            MODE::Normal
-        }
-        KeyCode::Enter => {
-            buf.update_contents(insert(
-                Point {
-                    column: display.get_cursor_coordinate_in_file().column,
-                    row: display.get_cursor_coordinate_in_file().row,
-                },
-                buf.get_contents(),
-                VecDeque::from(['\n']),
-            ).await);
+        OperationCode::InsertChar(c, size, position) if c == '\n' => {
             undo.add_do_history(
-                Operation::ADD,
+                EditOperation::ADD,
                 VecDeque::from(['\n']),
                 Point {
-                    column: display.get_cursor_coordinate_in_file().column,
-                    row: display.get_cursor_coordinate_in_file().row,
+                    column: position.column,
+                    row: position.row,
                 },
             );
-            display.move_cursor_nextpos(MoveDirection::Down, &buf).await;
-            display.move_cursor_nextpos(MoveDirection::Head, &buf).await;
-            //display.update_all(buf.get_contents()).await.unwrap();
-            MODE::Insert
+            if position.row>= buf.read().unwrap().len() {
+                buf.write().unwrap().push_back(VecDeque::new());
+            }else {
+                let mut buf = buf.write().unwrap();
+                let line = buf.get_mut(position.row).unwrap();
+                let mut new_line = VecDeque::new();
+                for _ in position.column..line.len() {
+                    new_line.push_back(line.pop_back().unwrap());
+                }
+                buf.insert(position.row + 1, new_line);
+            }
+           OperationCode::Move(MoveDirection::NewLine)
         }
-        KeyCode::Char(c) => {
-            buf.update_contents(insert(
-                Point {
-                    column: display.get_cursor_coordinate_in_file().column,
-                    row: display.get_cursor_coordinate_in_file().row,
-                },
-                buf.get_contents(),
-                VecDeque::from([c]),
-            ).await);
+        OperationCode::InsertChar(c,size,position) => {
+           buf.write().unwrap().get_mut(position.row).unwrap().insert(
+                position.column,
+                c,
+            );
             undo.add_do_history(
-                Operation::ADD,
+                EditOperation::ADD,
                 VecDeque::from([c]),
                 Point {
-                    column: display.get_cursor_coordinate_in_file().column,
-                    row: display.get_cursor_coordinate_in_file().row,
+                    column: position.column,
+                    row: position.row,
                 },
             );
-            display.move_cursor_nextpos(MoveDirection::Right, &buf).await;
-            //display.update_all(buf.get_contents()).await.unwrap();
-            MODE::Insert
+            OperationCode::Move(MoveDirection::Right)
         }
-        KeyCode::Backspace => {
-            let _tmp_pos = display.get_cursor_coordinate_in_file();
-            if display.get_cursor_coordinate_in_file().column <= 0 {
-                if display.get_cursor_coordinate().row > 0 {
-                    display.move_cursor_nextpos(MoveDirection::Up, &buf).await;
-                    display.move_cursor_nextpos(MoveDirection::Tail, &buf).await;
-                    let (result, delchar) = del(
-                        display.get_cursor_coordinate_in_file(),
-                        buf.get_contents(),
-                        1,
-                    ).await;
-                    buf.update_contents(result);
+        OperationCode::BackSpace(size, position) => {
+            
+            if position.column <= 0 {
+                if position.row > 0 {
+                    let mut buf = buf.write().unwrap();
+                    
+                    let mut tmp_line =     buf.remove(position.row).unwrap_or(VecDeque::new());
+                    buf.get_mut(position.row - 1).unwrap().append(&mut tmp_line);
+                    let delchar = VecDeque::from(['\n']);
                     undo.add_do_history(
-                        Operation::DELETE,
+                        EditOperation::DELETE,
                         delchar,
-                        display.get_cursor_coordinate_in_file(),
+                        Point {
+                            column: position.column,
+                            row: position.row,
+                        },
                     );
-                    //display.update_all(buf.get_contents()).await.unwrap();
+                    OperationCode::Move(MoveDirection::Up)
                 } else {
+                    OperationCode::DoNothing
                 };
             } else {
-                display.move_cursor_nextpos(MoveDirection::Left, &buf).await;
-                let (result, delchar) = del(
-                    display.get_cursor_coordinate_in_file(),
-                    buf.get_contents(),
-                    1,
-                ).await;
-                buf.update_contents(result);
+               let mut buf = buf.write().unwrap();
+                let line = buf.get_mut(position.row).unwrap();
+                let delchar = line.remove(position.column - 1).unwrap_or('\0');
                 undo.add_do_history(
-                    Operation::DELETE,
-                    delchar,
-                    display.get_cursor_coordinate_in_file(),
+                    EditOperation::DELETE,
+                    VecDeque::from([delchar]),
+                    Point {
+                        column: position.column,
+                        row: position.row,
+                    },
                 );
                 //display.update_all(buf.get_contents()).await.unwrap();
             };
-            MODE::Insert
+            OperationCode::Move(MoveDirection::Left)
         }
-        _ => MODE::Insert,
+        _ => {
+            OperationCode::DoNothing
+        },
     }
 }

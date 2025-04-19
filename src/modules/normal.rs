@@ -9,7 +9,7 @@ use crate::modules::show::{Display, MoveDirection};
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::KeyCode;
 
-use super::history::Operation;
+use super::history::EditOperation;
 
 #[derive(Debug)]
 pub struct Normal {}
@@ -58,7 +58,9 @@ impl Normal {
                     MODE::Normal
                 }
                 'l' => {
-                    display.move_cursor_nextpos(MoveDirection::Right, &buf).await;
+                    display
+                        .move_cursor_nextpos(MoveDirection::Right, &buf)
+                        .await;
                     MODE::Normal
                 }
                 'x' => {
@@ -68,9 +70,10 @@ impl Normal {
                         display.get_cursor_coordinate_in_file(),
                         buf.get_contents(),
                         1,
-                    ).await;
+                    )
+                    .await;
                     buf.update_contents(result);
-                    undo.add_do_history(Operation::DELETE, delchar, Point { column: col, row });
+                    undo.add_do_history(EditOperation::DELETE, delchar, Point { column: col, row });
                     //display.update_all(buf.get_contents()).await.unwrap();
                     MODE::Normal
                 }
@@ -78,13 +81,15 @@ impl Normal {
                     let (ret, pos) = undo.undo(buf.get_contents(), UndoDirection::Undo).await;
                     buf.update_contents(ret);
                     //display.update_all(buf.get_contents()).await.unwrap();
-                    display.move_to_point(
-                        buf,
-                        Point {
-                            column: pos.column,
-                            row: pos.row,
-                        },
-                    ).await;
+                    display
+                        .move_to_point(
+                            buf,
+                            Point {
+                                column: pos.column,
+                                row: pos.row,
+                            },
+                        )
+                        .await;
 
                     MODE::Normal
                 }
@@ -92,13 +97,15 @@ impl Normal {
                     let (ret, pos) = undo.undo(buf.get_contents(), UndoDirection::Redo).await;
                     buf.update_contents(ret);
                     //display.update_all(buf.get_contents()).await.unwrap();
-                    display.move_to_point(
-                        buf,
-                        Point {
-                            column: pos.column,
-                            row: pos.row,
-                        },
-                    ).await;
+                    display
+                        .move_to_point(
+                            buf,
+                            Point {
+                                column: pos.column,
+                                row: pos.row,
+                            },
+                        )
+                        .await;
 
                     MODE::Normal
                 }
@@ -115,11 +122,14 @@ impl Normal {
                     MODE::Normal
                 }
                 'p' => {
-                    buf.update_contents(yank.past(
-                        display.get_cursor_coordinate_in_file().row,
-                        buf.get_contents(),
-                        undo,
-                    ).await);
+                    buf.update_contents(
+                        yank.past(
+                            display.get_cursor_coordinate_in_file().row,
+                            buf.get_contents(),
+                            undo,
+                        )
+                        .await,
+                    );
                     display.move_cursor_nextpos(MoveDirection::Down, buf).await;
                     //let _ = display.update_all(buf.get_contents());
                     MODE::Normal

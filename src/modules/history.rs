@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use super::coordinate::Point;
 #[derive(Clone)]
 pub struct HistoryRecord {
-    ope: Operation,
+    ope: EditOperation,
     target: VecDeque<char>,
     position: Point,
 }
 #[derive(Clone, Copy)]
-pub enum Operation {
+pub enum EditOperation {
     HEAD,
     ADD,
     DELETE,
@@ -20,14 +20,14 @@ pub struct History {
 }
 
 impl HistoryRecord {
-    fn new(operation: Operation, input: VecDeque<char>, pos: Point) -> HistoryRecord {
+    fn new(operation: EditOperation, input: VecDeque<char>, pos: Point) -> HistoryRecord {
         HistoryRecord {
             ope: operation,
             target: input,
             position: pos,
         }
     }
-    pub fn get_operation(&self) -> Operation {
+    pub fn get_operation(&self) -> EditOperation {
         self.ope
     }
     pub fn get_pos(&self) -> Point {
@@ -44,7 +44,7 @@ impl History {
             index: 0,
         }
     }
-    pub fn add(&mut self, ope: Operation, target: VecDeque<char>, pos: Point) {
+    pub fn add(&mut self, ope: EditOperation, target: VecDeque<char>, pos: Point) {
         if self.history.len() >= 999 {
             self.history.pop_front();
             self.index -= 1;
@@ -56,7 +56,7 @@ impl History {
         match self.history.pop_back() {
             Some(t) => t,
             None => HistoryRecord::new(
-                Operation::HEAD,
+                EditOperation::HEAD,
                 VecDeque::new(),
                 Point { column: 0, row: 0 },
             ),
